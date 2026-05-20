@@ -12,6 +12,7 @@ You can fork, modify, improve this program. If you
 redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #include "AppDelegate.h"
+#include "TSFRegistrationHelper.h"
 
 static AppDelegate* _instance;
 
@@ -40,6 +41,7 @@ int vQuickEndConsonant = 0;
 int vOtherLanguage = 1;
 int vRememberCode = 1;
 int vTempOffOpenKey = 0;
+int vUseTSFInput = 0;
 
 int vUseGrayIcon = 0;
 int vShowOnStartUp = 0;
@@ -196,6 +198,7 @@ void AppDelegate::onDefaultConfig() {
 	APP_SET_DATA(vRememberCode, 1);
 	APP_SET_DATA(vOtherLanguage, 1);
 	APP_SET_DATA(vTempOffOpenKey, 0);
+	APP_SET_DATA(vUseTSFInput, 0);
 	APP_SET_DATA(vFixChromiumBrowser, 0);
 
 	if (mainDialog) {
@@ -241,6 +244,32 @@ void AppDelegate::onToggleUseMacro() {
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
+}
+
+void AppDelegate::onToggleUseTSFInput() {
+	APP_SET_DATA(vUseTSFInput, vUseTSFInput ? 0 : 1);
+	if (mainDialog) {
+		mainDialog->fillData();
+	}
+	SystemTrayHelper::updateData();
+}
+
+void AppDelegate::onRegisterTIP() {
+	bool success = TSFRegistrationHelper::registerTIP(false);
+	MessageBox(NULL,
+		success ? _T("OpenKey IME was installed into Windows.") : _T("Cannot install OpenKey IME into Windows."),
+		_T("OpenKey IME"),
+		success ? MB_OK | MB_ICONINFORMATION : MB_OK | MB_ICONERROR);
+	SystemTrayHelper::updateData();
+}
+
+void AppDelegate::onUnregisterTIP() {
+	bool success = TSFRegistrationHelper::unregisterTIP(false);
+	MessageBox(NULL,
+		success ? _T("OpenKey IME was removed from Windows.") : _T("Cannot remove OpenKey IME from Windows."),
+		_T("OpenKey IME"),
+		success ? MB_OK | MB_ICONINFORMATION : MB_OK | MB_ICONERROR);
+	SystemTrayHelper::updateData();
 }
 
 void AppDelegate::onMacroTable() {

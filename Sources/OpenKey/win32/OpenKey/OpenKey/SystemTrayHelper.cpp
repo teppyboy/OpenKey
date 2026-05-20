@@ -13,6 +13,7 @@ redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #include "SystemTrayHelper.h"
 #include "AppDelegate.h"
+#include "TSFRegistrationHelper.h"
 
 #define WM_TRAYMESSAGE (WM_USER + 1)
 #define TRAY_ICONUID 100
@@ -22,6 +23,9 @@ redistribute your new version, it MUST be open source.
 #define POPUP_SMART_SWITCH 902
 #define POPUP_USE_MACRO 903
 #define POPUP_DISABLE_CURRENT_APP 904
+#define POPUP_USE_TSF_INPUT 905
+#define POPUP_REGISTER_TIP 906
+#define POPUP_UNREGISTER_TIP 907
 
 #define POPUP_TELEX 910
 #define POPUP_VNI 911
@@ -60,6 +64,9 @@ map<UINT, LPCTSTR> menuData = {
 	{POPUP_SMART_SWITCH, _T("Bật loại trừ ứng dụng thông minh")},
 	{POPUP_USE_MACRO, _T("Bật gõ tắt")},
 	{POPUP_DISABLE_CURRENT_APP, _T("Tắt OpenKey cho ứng dụng này")},
+	{POPUP_USE_TSF_INPUT, _T("Dung OpenKey IME cua Windows")},
+	{POPUP_REGISTER_TIP, _T("Cai dat OpenKey IME vao Windows")},
+	{POPUP_UNREGISTER_TIP, _T("Go OpenKey IME khoi Windows")},
 	{POPUP_TELEX, _T("Kiểu gõ Telex")},
 	{POPUP_VNI, _T("Kiểu gõ VNI")},
 	{POPUP_SIMPLE_TELEX, _T("Kiểu gõ Simple Telex")},
@@ -221,6 +228,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			case POPUP_DISABLE_CURRENT_APP:
 				AppDelegate::getInstance()->onToggleCurrentAppDisabled();
 				break;
+			case POPUP_USE_TSF_INPUT:
+				AppDelegate::getInstance()->onToggleUseTSFInput();
+				break;
+			case POPUP_REGISTER_TIP:
+				AppDelegate::getInstance()->onRegisterTIP();
+				break;
+			case POPUP_UNREGISTER_TIP:
+				AppDelegate::getInstance()->onUnregisterTIP();
+				break;
 			case POPUP_MACRO_TABLE:
 				AppDelegate::getInstance()->onMacroTable();
 				break;
@@ -312,6 +328,9 @@ void SystemTrayHelper::createPopupMenu() {
 	AppendMenu(popupMenu, MF_CHECKED, POPUP_SMART_SWITCH, menuData[POPUP_SMART_SWITCH]);
 	AppendMenu(popupMenu, MF_CHECKED, POPUP_USE_MACRO, menuData[POPUP_USE_MACRO]);
 	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_DISABLE_CURRENT_APP, menuData[POPUP_DISABLE_CURRENT_APP]);
+	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_USE_TSF_INPUT, menuData[POPUP_USE_TSF_INPUT]);
+	AppendMenu(popupMenu, MF_STRING, POPUP_REGISTER_TIP, menuData[POPUP_REGISTER_TIP]);
+	AppendMenu(popupMenu, MF_STRING, POPUP_UNREGISTER_TIP, menuData[POPUP_UNREGISTER_TIP]);
 	AppendMenu(popupMenu, MF_SEPARATOR, 0, 0);
 	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_MACRO_TABLE, menuData[POPUP_MACRO_TABLE]);
 	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_CONVERT_TOOL, menuData[POPUP_CONVERT_TOOL]);
@@ -374,6 +393,8 @@ void SystemTrayHelper::updateData() {
 	MODIFY_MENU(popupMenu, POPUP_SMART_SWITCH, vUseSmartSwitchKey);
 	MODIFY_MENU(popupMenu, POPUP_USE_MACRO, vUseMacro);
 	MODIFY_MENU(popupMenu, POPUP_DISABLE_CURRENT_APP, getCurrentAppInputMode() == vAppInputModeDisabled);
+	MODIFY_MENU(popupMenu, POPUP_USE_TSF_INPUT, vUseTSFInput);
+	ModifyMenu(popupMenu, POPUP_REGISTER_TIP, MF_BYCOMMAND | (TSFRegistrationHelper::isTIPRegistered() ? MF_CHECKED : MF_UNCHECKED), POPUP_REGISTER_TIP, menuData[POPUP_REGISTER_TIP]);
 	MODIFY_MENU(popupMenu, POPUP_TELEX, vInputType == 0);
 	MODIFY_MENU(popupMenu, POPUP_VNI, vInputType == 1);
 	MODIFY_MENU(popupMenu, POPUP_SIMPLE_TELEX, vInputType == 2);

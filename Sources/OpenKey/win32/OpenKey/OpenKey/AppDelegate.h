@@ -41,6 +41,9 @@ public: //event
 	void onToggleUseSmartSwitchKey();
 	void onToggleCurrentAppDisabled();
 	void onToggleUseMacro();
+	void onToggleUseTSFInput();
+	void onRegisterTIP();
+	void onUnregisterTIP();
 
 	void onMacroTable();
 	void onConvertTool();

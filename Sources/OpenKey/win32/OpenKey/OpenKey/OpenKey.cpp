@@ -110,6 +110,7 @@ void OpenKeyInit() {
 	APP_GET_DATA(vRememberCode, 1);
 	APP_GET_DATA(vOtherLanguage, 1);
 	APP_GET_DATA(vTempOffOpenKey, 0);
+	APP_GET_DATA(vUseTSFInput, 0);
 	APP_GET_DATA(vFixChromiumBrowser, 0);
 
 	//init convert tool
@@ -574,6 +575,10 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 			_hasJustUsedHotKey = false;
 		}
 		_keycode = 0;
+		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
+	}
+
+	if (vUseTSFInput) {
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 

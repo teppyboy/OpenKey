@@ -19,10 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{21E71F9D-859A-4B8B-84F4-F5003E933BB3}</ProjectGuid>
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <ProjectGuid>{386B1E93-D483-4753-BF38-D543F39E0E73}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>OpenKey</RootNamespace>
+    <RootNamespace>OpenKeyTIPTests</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -78,42 +78,25 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <TargetName>$(ProjectName)32</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <TargetName>$(ProjectName)64</TargetName>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <UACExecutionLevel>AsInvoker</UACExecutionLevel>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <ClCompile>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-    </ClCompile>
-    <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
@@ -121,106 +104,29 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <UACExecutionLevel>AsInvoker</UACExecutionLevel>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <ClCompile>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-    </ClCompile>
-    <Link>
-      <SubSystem>Windows</SubSystem>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <UACExecutionLevel>AsInvoker</UACExecutionLevel>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\engine\ConvertTool.h" />
-    <ClInclude Include="..\..\..\engine\DataType.h" />
-    <ClInclude Include="..\..\..\engine\Engine.h" />
-    <ClInclude Include="..\..\..\engine\Macro.h" />
-    <ClInclude Include="..\..\..\engine\platforms\linux.h" />
-    <ClInclude Include="..\..\..\engine\platforms\mac.h" />
-    <ClInclude Include="..\..\..\engine\platforms\win32.h" />
-    <ClInclude Include="..\..\..\engine\SmartSwitchKey.h" />
-    <ClInclude Include="..\..\..\engine\Vietnamese.h" />
-    <ClInclude Include="AboutDialog.h" />
-    <ClInclude Include="AppDelegate.h" />
-    <ClInclude Include="BaseDialog.h" />
-    <ClInclude Include="ConvertToolDialog.h" />
-    <ClInclude Include="MacroDialog.h" />
-    <ClInclude Include="MainControlDialog.h" />
-    <ClInclude Include="OpenKeyHelper.h" />
-    <ClInclude Include="OpenKeyManager.h" />
-    <ClInclude Include="Resource.h" />
-    <ClInclude Include="stdafx.h" />
-    <ClInclude Include="SystemTrayHelper.h" />
-    <ClInclude Include="targetver.h" />
-    <ClInclude Include="TSFRegistrationHelper.h" />
+    <ClInclude Include="..\..\engine\Engine.h" />
+    <ClInclude Include="..\..\engine\EngineOutput.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\engine\ConvertTool.cpp" />
-    <ClCompile Include="..\..\..\engine\Engine.cpp" />
-    <ClCompile Include="..\..\..\engine\Macro.cpp" />
-    <ClCompile Include="..\..\..\engine\SmartSwitchKey.cpp" />
-    <ClCompile Include="..\..\..\engine\Vietnamese.cpp" />
-    <ClCompile Include="AboutDialog.cpp" />
-    <ClCompile Include="AppDelegate.cpp" />
-    <ClCompile Include="BaseDialog.cpp" />
-    <ClCompile Include="ConvertToolDialog.cpp" />
-    <ClCompile Include="MacroDialog.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="MainControlDialog.cpp" />
-    <ClCompile Include="OpenKey.cpp" />
-    <ClCompile Include="OpenKeyHelper.cpp" />
-    <ClCompile Include="OpenKeyManager.cpp" />
-    <ClCompile Include="stdafx.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="SystemTrayHelper.cpp" />
-    <ClCompile Include="TSFRegistrationHelper.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="OpenKey.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="DefaultButton.ico" />
-    <Image Include="ExitButton.ico" />
-    <Image Include="icon.ico" />
-    <Image Include="OKButton.ico" />
-    <Image Include="StartConvert.ico" />
-    <Image Include="StatusEng.ico" />
-    <Image Include="StatusEng10.ico" />
-    <Image Include="StatusViet.ico" />
-    <Image Include="StatusViet10.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <Manifest Include="DeclareDPIAware.manifest">
-      <SubType>Designer</SubType>
-    </Manifest>
-    <Manifest Include="Style.manifest" />
+    <ClCompile Include="..\..\engine\ConvertTool.cpp" />
+    <ClCompile Include="..\..\engine\Engine.cpp" />
+    <ClCompile Include="..\..\engine\EngineOutput.cpp" />
+    <ClCompile Include="..\..\engine\Macro.cpp" />
+    <ClCompile Include="..\..\engine\SmartSwitchKey.cpp" />
+    <ClCompile Include="..\..\engine\Vietnamese.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
