@@ -21,6 +21,7 @@ redistribute your new version, it MUST be open source.
 #define POPUP_SPELLING 901
 #define POPUP_SMART_SWITCH 902
 #define POPUP_USE_MACRO 903
+#define POPUP_DISABLE_CURRENT_APP 904
 
 #define POPUP_TELEX 910
 #define POPUP_VNI 911
@@ -51,12 +52,14 @@ static HMENU popupMenu;
 static HMENU otherCode;
 
 static NOTIFYICONDATA nid;
+static HICON disabledTrayIcon = NULL;
 
 map<UINT, LPCTSTR> menuData = {
 	{POPUP_VIET_ON_OFF, _T("Bật Tiếng Việt")},
 	{POPUP_SPELLING, _T("Bật kiểm tra chính tả")},
 	{POPUP_SMART_SWITCH, _T("Bật loại trừ ứng dụng thông minh")},
 	{POPUP_USE_MACRO, _T("Bật gõ tắt")},
+	{POPUP_DISABLE_CURRENT_APP, _T("Tắt OpenKey cho ứng dụng này")},
 	{POPUP_TELEX, _T("Kiểu gõ Telex")},
 	{POPUP_VNI, _T("Kiểu gõ VNI")},
 	{POPUP_SIMPLE_TELEX, _T("Kiểu gõ Simple Telex")},
@@ -72,6 +75,105 @@ map<UINT, LPCTSTR> menuData = {
 	{POPUP_ABOUT_OPENKEY, _T("Giới thiệu OpenKey")},
 	{POPUP_OPENKEY_EXIT, _T("Thoát")},
 };
+
+static void destroyDisabledTrayIcon() {
+	if (disabledTrayIcon) {
+		DestroyIcon(disabledTrayIcon);
+		disabledTrayIcon = NULL;
+	}
+}
+
+static HICON createDisabledTrayIcon(HICON sourceIcon) {
+	ICONINFO sourceInfo;
+	if (!GetIconInfo(sourceIcon, &sourceInfo))
+		return NULL;
+
+	BITMAP sourceBitmap;
+	HBITMAP sizeBitmap = sourceInfo.hbmColor ? sourceInfo.hbmColor : sourceInfo.hbmMask;
+	if (!GetObject(sizeBitmap, sizeof(BITMAP), &sourceBitmap)) {
+		DeleteObject(sourceInfo.hbmColor);
+		DeleteObject(sourceInfo.hbmMask);
+		return NULL;
+	}
+
+	int width = sourceBitmap.bmWidth;
+	int height = sourceInfo.hbmColor ? sourceBitmap.bmHeight : sourceBitmap.bmHeight / 2;
+	if (width <= 0 || height <= 0) {
+		DeleteObject(sourceInfo.hbmColor);
+		DeleteObject(sourceInfo.hbmMask);
+		return NULL;
+	}
+
+	BITMAPINFO bitmapInfo;
+	ZeroMemory(&bitmapInfo, sizeof(bitmapInfo));
+	bitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	bitmapInfo.bmiHeader.biWidth = width;
+	bitmapInfo.bmiHeader.biHeight = -height;
+	bitmapInfo.bmiHeader.biPlanes = 1;
+	bitmapInfo.bmiHeader.biBitCount = 32;
+	bitmapInfo.bmiHeader.biCompression = BI_RGB;
+
+	void* bits = NULL;
+	HDC screenDc = GetDC(NULL);
+	HBITMAP colorBitmap = CreateDIBSection(screenDc, &bitmapInfo, DIB_RGB_COLORS, &bits, NULL, 0);
+	HDC memoryDc = CreateCompatibleDC(screenDc);
+	if (!colorBitmap || !bits || !memoryDc) {
+		if (memoryDc)
+			DeleteDC(memoryDc);
+		if (colorBitmap)
+			DeleteObject(colorBitmap);
+		ReleaseDC(NULL, screenDc);
+		DeleteObject(sourceInfo.hbmColor);
+		DeleteObject(sourceInfo.hbmMask);
+		return NULL;
+	}
+	HBITMAP oldBitmap = (HBITMAP)SelectObject(memoryDc, colorBitmap);
+	DrawIconEx(memoryDc, 0, 0, sourceIcon, width, height, 0, NULL, DI_NORMAL);
+	SelectObject(memoryDc, oldBitmap);
+	DeleteDC(memoryDc);
+	ReleaseDC(NULL, screenDc);
+
+	Uint32* pixels = (Uint32*)bits;
+	bool hasAlpha = false;
+	for (int i = 0; i < width * height; ++i) {
+		if ((pixels[i] >> 24) > 0) {
+			hasAlpha = true;
+			break;
+		}
+	}
+	for (int i = 0; i < width * height; ++i) {
+		Uint8 alpha = (Uint8)(pixels[i] >> 24);
+		if (hasAlpha && alpha > 0) {
+			alpha = (Uint8)(alpha * 45 / 100);
+			pixels[i] = (pixels[i] & 0x00FFFFFF) | ((Uint32)alpha << 24);
+		} else if (!hasAlpha && (pixels[i] & 0x00FFFFFF)) {
+			pixels[i] = (pixels[i] & 0x00FFFFFF) | ((Uint32)115 << 24);
+		}
+	}
+
+	int maskStride = ((width + 15) / 16) * 2;
+	vector<Byte> maskBits(maskStride * height, 0);
+	HBITMAP maskBitmap = CreateBitmap(width, height, 1, 1, maskBits.data());
+	if (!maskBitmap) {
+		DeleteObject(colorBitmap);
+		DeleteObject(sourceInfo.hbmColor);
+		DeleteObject(sourceInfo.hbmMask);
+		return NULL;
+	}
+	ICONINFO disabledInfo;
+	ZeroMemory(&disabledInfo, sizeof(disabledInfo));
+	disabledInfo.fIcon = TRUE;
+	disabledInfo.hbmColor = colorBitmap;
+	disabledInfo.hbmMask = maskBitmap;
+	HICON icon = CreateIconIndirect(&disabledInfo);
+
+	DeleteObject(colorBitmap);
+	DeleteObject(maskBitmap);
+	DeleteObject(sourceInfo.hbmColor);
+	DeleteObject(sourceInfo.hbmMask);
+
+	return icon;
+}
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	static UINT taskbarCreated;
@@ -115,6 +217,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				break;
 			case POPUP_USE_MACRO:
 				AppDelegate::getInstance()->onToggleUseMacro();
+				break;
+			case POPUP_DISABLE_CURRENT_APP:
+				AppDelegate::getInstance()->onToggleCurrentAppDisabled();
 				break;
 			case POPUP_MACRO_TABLE:
 				AppDelegate::getInstance()->onMacroTable();
@@ -206,6 +311,7 @@ void SystemTrayHelper::createPopupMenu() {
 	AppendMenu(popupMenu, MF_CHECKED, POPUP_SPELLING, menuData[POPUP_SPELLING]);
 	AppendMenu(popupMenu, MF_CHECKED, POPUP_SMART_SWITCH, menuData[POPUP_SMART_SWITCH]);
 	AppendMenu(popupMenu, MF_CHECKED, POPUP_USE_MACRO, menuData[POPUP_USE_MACRO]);
+	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_DISABLE_CURRENT_APP, menuData[POPUP_DISABLE_CURRENT_APP]);
 	AppendMenu(popupMenu, MF_SEPARATOR, 0, 0);
 	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_MACRO_TABLE, menuData[POPUP_MACRO_TABLE]);
 	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_CONVERT_TOOL, menuData[POPUP_CONVERT_TOOL]);
@@ -241,6 +347,7 @@ void SystemTrayHelper::createPopupMenu() {
 
 static void loadTrayIcon() {
 	int icon = 0;
+	bool useDisabledIcon = getCurrentAppInputMode() == vAppInputModeDisabled;
 	if (vLanguage) {
 		icon = vUseGrayIcon ? IDI_ICON_STATUS_VIET_10 : IDI_ICON_STATUS_VIET;
 		LoadString(GetModuleHandle(0), IDS_TRAY_TITLE_2, nid.szTip, 128);
@@ -249,7 +356,13 @@ static void loadTrayIcon() {
 		icon = vUseGrayIcon ? IDI_ICON_STATUS_ENG_10 : IDI_ICON_STATUS_ENG;
 		LoadString(GetModuleHandle(0), IDS_TRAY_TITLE, nid.szTip, 128);
 	}
+	destroyDisabledTrayIcon();
 	nid.hIcon = LoadIcon(GetModuleHandle(0), MAKEINTRESOURCE(icon));
+	if (useDisabledIcon) {
+		disabledTrayIcon = createDisabledTrayIcon(nid.hIcon);
+		if (disabledTrayIcon)
+			nid.hIcon = disabledTrayIcon;
+	}
 }
 
 void SystemTrayHelper::updateData() {
@@ -260,6 +373,7 @@ void SystemTrayHelper::updateData() {
 	MODIFY_MENU(popupMenu, POPUP_SPELLING, vCheckSpelling);
 	MODIFY_MENU(popupMenu, POPUP_SMART_SWITCH, vUseSmartSwitchKey);
 	MODIFY_MENU(popupMenu, POPUP_USE_MACRO, vUseMacro);
+	MODIFY_MENU(popupMenu, POPUP_DISABLE_CURRENT_APP, getCurrentAppInputMode() == vAppInputModeDisabled);
 	MODIFY_MENU(popupMenu, POPUP_TELEX, vInputType == 0);
 	MODIFY_MENU(popupMenu, POPUP_VNI, vInputType == 1);
 	MODIFY_MENU(popupMenu, POPUP_SIMPLE_TELEX, vInputType == 2);
@@ -363,4 +477,5 @@ void SystemTrayHelper::createSystemTrayIcon(const HINSTANCE& hIns) {
 
 void SystemTrayHelper::removeSystemTray() {
 	Shell_NotifyIcon(NIM_DELETE, &nid);
+	destroyDisabledTrayIcon();
 }

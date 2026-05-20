@@ -1,3 +1,5 @@
+> [!WARNING]
+> This is a slopped fork of OpenKey, focusing on adding additional features and fixing bugs. While there are attempts to improve the quality of the AI-generated code, this is still entirely vibe-coded so expect bugs and slow maintenance.
 
 # [OpenKey](http://open-key.org)
 ### [Download bản mới nhất](https://github.com/tuyenvm/OpenKey/releases)

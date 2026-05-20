@@ -392,7 +392,7 @@ void MainControlDialog::onComboBoxSelected(const HWND& hCombobox, const int& com
     else if (hCombobox == comboBoxTableCode) {
         APP_SET_DATA(vCodeTable, (int)SendMessage(hCombobox, CB_GETCURSEL, 0, 0));
         if (vRememberCode) {
-            setAppInputMethodStatus(OpenKeyHelper::getFrontMostAppExecuteName(), vLanguage | (vCodeTable << 1));
+            setAppInputMethodStatus(OpenKeyHelper::getFrontMostAppExecuteName(), makeAppInputMethodStatus(vLanguage, vCodeTable));
             saveSmartSwitchKeyData();
         }
     }
@@ -435,7 +435,7 @@ void MainControlDialog::onCheckboxClicked(const HWND& hWnd) {
         val = (int)SendMessage(checkVietnamese, BM_GETCHECK, 0, 0);
         APP_SET_DATA(vLanguage, val ? 1 : 0);
         if (vUseSmartSwitchKey) {
-            setAppInputMethodStatus(OpenKeyHelper::getFrontMostAppExecuteName(), vLanguage | (vCodeTable << 1));
+            setAppInputMethodStatus(OpenKeyHelper::getFrontMostAppExecuteName(), makeAppInputMethodStatus(vLanguage, vCodeTable));
             saveSmartSwitchKeyData();
         }
     }
@@ -443,7 +443,7 @@ void MainControlDialog::onCheckboxClicked(const HWND& hWnd) {
         val = (int)SendMessage(checkVietnamese, BM_GETCHECK, 0, 0);
         APP_SET_DATA(vLanguage, val ? 1 : 0);
         if (vUseSmartSwitchKey) {
-            setAppInputMethodStatus(OpenKeyHelper::getFrontMostAppExecuteName(), vLanguage | (vCodeTable << 1));
+            setAppInputMethodStatus(OpenKeyHelper::getFrontMostAppExecuteName(), makeAppInputMethodStatus(vLanguage, vCodeTable));
             saveSmartSwitchKeyData();
         }
     }

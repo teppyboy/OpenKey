@@ -79,21 +79,23 @@ static void convert(const string& str, vector<Uint32>& outData) {
  */
 void initMacroMap(const Byte* pData, const int& size) {
     macroMap.clear();
+    if (pData == NULL || size < 2) return;
     Uint16 macroCount = 0;
     Uint32 cursor = 0;
-    if (size >= 2) {
-        memcpy(&macroCount, pData + cursor, 2);
-        cursor+=2;
-    }
-    Uint8 macroTextSize;
-    Uint16 macroContentSize;
+    memcpy(&macroCount, pData + cursor, 2);
+    cursor+=2;
+
     for (int i = 0; i < macroCount; i++) {
-        macroTextSize = pData[cursor++];
+        if (cursor >= (Uint32)size) break;
+        Uint8 macroTextSize = pData[cursor++];
+        if (cursor + macroTextSize + 2 > (Uint32)size) break;
         string macroText((char*)pData + cursor, macroTextSize);
         cursor += macroTextSize;
         
+        Uint16 macroContentSize;
         memcpy(&macroContentSize, pData + cursor, 2);
         cursor+=2;
+        if (cursor + macroContentSize > (Uint32)size) break;
         string macroContent((char*)pData + cursor, macroContentSize);
         cursor += macroContentSize;
         
@@ -110,11 +112,13 @@ void initMacroMap(const Byte* pData, const int& size) {
 }
 
 void getMacroSaveData(vector<Byte>& outData) {
-    Uint16 totalMacro = (Uint16)macroMap.size();
-    outData.push_back((Byte)totalMacro);
-    outData.push_back((Byte)(totalMacro>>8));
+    outData.clear();
+    outData.push_back(0);
+    outData.push_back(0);
+    Uint16 totalMacro = 0;
     
     for (std::map<vector<Uint32>, MacroData>::iterator it = macroMap.begin(); it != macroMap.end(); ++it) {
+        if (it->second.macroText.size() > 255 || it->second.macroContent.size() > 0xFFFF || totalMacro == 0xFFFF) continue;
         outData.push_back((Byte)it->second.macroText.size());
         for (int j = 0; j < it->second.macroText.size(); j++) {
             outData.push_back(it->second.macroText[j]);
@@ -126,7 +130,11 @@ void getMacroSaveData(vector<Byte>& outData) {
         for (int j = 0; j < macroContentSize; j++) {
             outData.push_back(it->second.macroContent[j]);
         }
+        totalMacro++;
     }
+
+    outData[0] = (Byte)totalMacro;
+    outData[1] = (Byte)(totalMacro>>8);
 }
 
 static bool modifyCaseUnicode(Uint32& code, const bool& isUpperCase=true) {

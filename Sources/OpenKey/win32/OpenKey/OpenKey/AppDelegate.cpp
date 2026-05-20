@@ -212,7 +212,7 @@ void AppDelegate::onToggleVietnamese() {
 	
 	if (vUseSmartSwitchKey) {
 		string& exe = OpenKeyHelper::getLastAppExecuteName();
-		setAppInputMethodStatus(exe, vLanguage | (vCodeTable << 1));
+		setAppInputMethodStatus(exe, makeAppInputMethodStatus(vLanguage, vCodeTable));
 		saveSmartSwitchKeyData();
 	}
 }
@@ -230,6 +230,10 @@ void AppDelegate::onToggleUseSmartSwitchKey() {
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
+}
+
+void AppDelegate::onToggleCurrentAppDisabled() {
+	setCurrentAppInputMode(getCurrentAppInputMode() == vAppInputModeDisabled ? vAppInputModeDefault : vAppInputModeDisabled);
 }
 
 void AppDelegate::onToggleUseMacro() {
@@ -281,7 +285,7 @@ void AppDelegate::onTableCode(const int & code) {
 		mainDialog->fillData();
 	}
 	if (vRememberCode) {
-		setAppInputMethodStatus(OpenKeyHelper::getFrontMostAppExecuteName(), vLanguage | (vCodeTable << 1));
+		setAppInputMethodStatus(OpenKeyHelper::getFrontMostAppExecuteName(), makeAppInputMethodStatus(vLanguage, vCodeTable));
 		saveSmartSwitchKeyData();
 	}
 }

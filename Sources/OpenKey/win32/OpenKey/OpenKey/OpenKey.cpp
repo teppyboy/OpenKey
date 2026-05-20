@@ -61,6 +61,7 @@ static Uint32 _tempChar;
 static string macroText, macroContent;
 static int _languageTemp = 0; //use for smart switch key
 static vector<Byte> savedSmartSwitchKeyData; ////use for smart switch key
+static int _appInputMode = vAppInputModeDefault;
 
 static bool _hasJustUsedHotKey = false;
 
@@ -172,6 +173,21 @@ void OpenKeyInit() {
 void saveSmartSwitchKeyData() {
 	getSmartSwitchKeySaveData(savedSmartSwitchKeyData);
 	OpenKeyHelper::setRegBinary(_T("smartSwitchKey"), savedSmartSwitchKeyData.data(), (int)savedSmartSwitchKeyData.size());
+}
+
+int getCurrentAppInputMode() {
+	return getAppInputMode(OpenKeyHelper::getLastAppExecuteName());
+}
+
+void setCurrentAppInputMode(const int& appInputMode) {
+	string& exe = OpenKeyHelper::getLastAppExecuteName();
+	if (exe.compare("explorer.exe") == 0)
+		return;
+	_appInputMode = appInputMode;
+	setAppInputMode(exe, appInputMode);
+	saveSmartSwitchKeyData();
+	startNewSession();
+	SystemTrayHelper::updateData();
 }
 
 static void InsertKeyLength(const Uint8& len) {
@@ -407,7 +423,7 @@ void switchLanguage() {
 		MessageBeep(MB_OK);
 	AppDelegate::getInstance()->onInputMethodChangedFromHotKey();
 	if (vUseSmartSwitchKey) {
-		setAppInputMethodStatus(OpenKeyHelper::getFrontMostAppExecuteName(), vLanguage | (vCodeTable << 1));
+		setAppInputMethodStatus(OpenKeyHelper::getFrontMostAppExecuteName(), makeAppInputMethodStatus(vLanguage, vCodeTable));
 		saveSmartSwitchKeyData();
 	}
 	startNewSession();
@@ -561,6 +577,10 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 
+	if (_appInputMode == vAppInputModeDisabled) {
+		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
+	}
+
 	//if is in english mode
 	if (vLanguage == 0) {
 		if (vUseMacro && vUseMacroInEnglishMode && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)) {
@@ -672,12 +692,17 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 }
 
 VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime) {
+	_appInputMode = vAppInputModeDefault;
 	//smart switch key
 	if (vUseSmartSwitchKey || vRememberCode) {
 		string& exe = OpenKeyHelper::getFrontMostAppExecuteName();
-		if (exe.compare("explorer.exe") == 0) //dont apply with windows explorer
+		if (exe.compare("explorer.exe") == 0) { //dont apply with windows explorer
+			SystemTrayHelper::updateData();
 			return;
-		_languageTemp = getAppInputMethodStatus(exe, vLanguage | (vCodeTable << 1));
+		}
+		_languageTemp = getAppInputMethodStatus(exe, makeAppInputMethodStatus(vLanguage, vCodeTable));
+		_appInputMode = getAppInputMode(exe);
+		SystemTrayHelper::updateData();
 		vTempOffEngine(false);
 		if (vUseSmartSwitchKey && (_languageTemp & 0x01) != vLanguage) {
 			if (_languageTemp != -1) {

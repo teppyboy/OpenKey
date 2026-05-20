@@ -39,6 +39,7 @@ public: //event
 	void onToggleVietnamese();
 	void onToggleCheckSpelling();
 	void onToggleUseSmartSwitchKey();
+	void onToggleCurrentAppDisabled();
 	void onToggleUseMacro();
 
 	void onMacroTable();

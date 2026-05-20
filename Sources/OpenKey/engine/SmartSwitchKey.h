@@ -14,6 +14,13 @@
 
 using namespace std;
 
+enum vAppInputMode {
+    vAppInputModeDefault = 0,
+    vAppInputModeDisabled = 1,
+};
+
+int makeAppInputMethodStatus(const int& language, const int& codeTable, const int& appInputMode = vAppInputModeDefault);
+
 void initSmartSwitchKey(const Byte* pData, const int& size);
 
 /**
@@ -22,17 +29,22 @@ void initSmartSwitchKey(const Byte* pData, const int& size);
 void getSmartSwitchKeySaveData(vector<Byte>& outData);
 
 /**
- * find and get language input method, if don't has set @currentInputMethod value for this app
+ * Find saved input method state for this app. The stored value currently packs
+ * language in bit 0 and code table in the remaining bits.
+ * If this app is missing, save @currentInputMethod for next time.
  * return:
  * -1: don't have this bundleId
- * 0: English
- * 1: Vietnamese
+ * otherwise: packed input method state
  */
 int getAppInputMethodStatus(const string& bundleId, const int& currentInputMethod);
 
+int getAppInputMode(const string& bundleId);
+
 /**
- * Set default language for this @bundleId
+ * Set packed input method state for this @bundleId.
  */
 void setAppInputMethodStatus(const string& bundleId, const int& language);
+
+void setAppInputMode(const string& bundleId, const int& appInputMode);
 
 #endif /* SmartSwitchKey_h */
