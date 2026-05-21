@@ -398,14 +398,17 @@ void AppDelegate::shutdown() {
 	}
 	isShuttingDown = true;
 
+	// Free engine (uninstalls keyboard hook) and tray before TSF cleanup so the system
+	// input hook is not blocked during the TSF deactivation delay.
+	OpenKeyManager::freeEngine();
+	SystemTrayHelper::removeSystemTray();
+
 	DEBUG_LOG(L"OpenKey exit requested: vUseTSFInput=%d registered=%d", vUseTSFInput, TSFRegistrationHelper::isTIPRegistered());
 	if (vUseTSFInput || TSFRegistrationHelper::isTIPRegistered()) {
 		APP_SET_DATA(vUseTSFInput, 0);
 		TSFRegistrationHelper::unregisterTIP(false);
 		DEBUG_LOG(L"TIP unregistered during exit");
 	}
-	OpenKeyManager::freeEngine();
-	SystemTrayHelper::removeSystemTray();
 }
 
 void AppDelegate::onOpenKeyExit() {
