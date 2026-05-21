@@ -192,6 +192,9 @@ void MainControlDialog::initDialog() {
     checkSupportMetroApp = GetDlgItem(hTabPage3, IDC_CHECK_SUPPORT_METRO_APP);
     createToolTip(checkSupportMetroApp, IDS_STRING_SUPPORT_METRO);
 
+    checkUseTSFInput = GetDlgItem(hTabPage3, IDC_CHECK_USE_TSF_INPUT);
+    createToolTip(checkUseTSFInput, IDS_STRING_USE_TSF_INPUT);
+
     checkUseClipboard = GetDlgItem(hTabPage3, IDC_CHECK_USE_CLIPBOARD);
     createToolTip(checkUseClipboard, IDS_STRING_USE_CLIPBOARD);
 
@@ -365,6 +368,7 @@ void MainControlDialog::fillData() {
     SendMessage(checkCheckNewVersion, BM_SETCHECK, vCheckNewVersion ? 1 : 0, 0);
     SendMessage(checkUseClipboard, BM_SETCHECK, vSendKeyStepByStep ? 0 : 1, 0);
     SendMessage(checkFixChromium, BM_SETCHECK, vFixChromiumBrowser ? 1 : 0, 0);
+    SendMessage(checkUseTSFInput, BM_SETCHECK, vUseTSFInput ? 1 : 0, 0);
 
     EnableWindow(checkRestoreIfWrongSpelling, vCheckSpelling);
     EnableWindow(checkAllowZWJF, vCheckSpelling);
@@ -560,6 +564,10 @@ void MainControlDialog::onCheckboxClicked(const HWND& hWnd) {
     else if (hWnd == checkFixChromium) {
         val = (int)SendMessage(hWnd, BM_GETCHECK, 0, 0);
         APP_SET_DATA(vFixChromiumBrowser, val ? 1 : 0);
+    }
+    else if (hWnd == checkUseTSFInput) {
+        AppDelegate::getInstance()->onToggleUseTSFInput();
+        return;
     }
     SystemTrayHelper::updateData();
 }

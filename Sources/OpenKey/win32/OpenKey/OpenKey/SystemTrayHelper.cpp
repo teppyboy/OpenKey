@@ -85,6 +85,7 @@ map<UINT, LPCTSTR> menuData = {
 
 static void destroyDisabledTrayIcon() {
 	if (disabledTrayIcon) {
+		DEBUG_LOG(L"tray destroy disabled icon");
 		DestroyIcon(disabledTrayIcon);
 		disabledTrayIcon = NULL;
 	}
@@ -367,7 +368,10 @@ void SystemTrayHelper::createPopupMenu() {
 static void loadTrayIcon() {
 	int icon = 0;
 	bool useDisabledIcon = getCurrentAppInputMode() == vAppInputModeDisabled;
-	if (vLanguage) {
+	if (vUseTSFInput) {
+		icon = IDI_APP_ICON;
+		lstrcpyn(nid.szTip, _T("OpenKey - Windows IME mode"), ARRAYSIZE(nid.szTip));
+	} else if (vLanguage) {
 		icon = vUseGrayIcon ? IDI_ICON_STATUS_VIET_10 : IDI_ICON_STATUS_VIET;
 		LoadString(GetModuleHandle(0), IDS_TRAY_TITLE_2, nid.szTip, 128);
 	}
@@ -377,6 +381,7 @@ static void loadTrayIcon() {
 	}
 	destroyDisabledTrayIcon();
 	nid.hIcon = LoadIcon(GetModuleHandle(0), MAKEINTRESOURCE(icon));
+	DEBUG_LOG(L"tray load icon: icon=%d tsf=%d language=%d gray=%d appMode=%d", icon, vUseTSFInput, vLanguage, vUseGrayIcon, getCurrentAppInputMode());
 	if (useDisabledIcon) {
 		disabledTrayIcon = createDisabledTrayIcon(nid.hIcon);
 		if (disabledTrayIcon)
@@ -387,6 +392,7 @@ static void loadTrayIcon() {
 void SystemTrayHelper::updateData() {
 	loadTrayIcon();
 	Shell_NotifyIcon(NIM_MODIFY, &nid);
+	DEBUG_LOG(L"tray update: lang=%d spell=%d smart=%d macro=%d tsf=%d registered=%d appMode=%d", vLanguage, vCheckSpelling, vUseSmartSwitchKey, vUseMacro, vUseTSFInput, TSFRegistrationHelper::isTIPRegistered(), getCurrentAppInputMode());
 
 	MODIFY_MENU(popupMenu, POPUP_VIET_ON_OFF, vLanguage);
 	MODIFY_MENU(popupMenu, POPUP_SPELLING, vCheckSpelling);

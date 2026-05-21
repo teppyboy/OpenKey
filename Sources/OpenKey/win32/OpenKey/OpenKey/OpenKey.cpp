@@ -72,13 +72,31 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam);
 VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime);
 
+static void DebugLogHookState(const wchar_t* label) {
+	if (!pData) {
+		DEBUG_LOG(L"%s: hook state unavailable", label);
+		return;
+	}
+	DEBUG_LOG(L"%s: code=%d backspace=%u newChar=%u ext=%u macroKey=%llu macroData=%llu sync=%llu",
+		label,
+		pData->code,
+		pData->backspaceCount,
+		pData->newCharCount,
+		pData->extCode,
+		(unsigned long long)pData->macroKey.size(),
+		(unsigned long long)pData->macroData.size(),
+		(unsigned long long)_syncKey.size());
+}
+
 void OpenKeyFree() {
+	DEBUG_LOG(L"OpenKeyFree: unhook mouse=0x%p keyboard=0x%p event=0x%p", hMouseHook, hKeyboardHook, hSystemEvent);
 	UnhookWindowsHookEx(hMouseHook);
 	UnhookWindowsHookEx(hKeyboardHook);
 	UnhookWinEvent(hSystemEvent);
 }
 
 void OpenKeyInit() {
+	DEBUG_LOG(L"OpenKeyInit begin");
 	APP_GET_DATA(vLanguage, 1);
 	APP_GET_DATA(vInputType, 0);
 	vFreeMark = 0;
@@ -126,8 +144,14 @@ void OpenKeyInit() {
 	if (convertToolHotKey == 0) {
 		convertToolHotKey = EMPTY_HOTKEY;
 	}
+	DEBUG_LOG(L"OpenKey config: lang=%d input=%d code=%d spell=%d modern=%d restore=%d macro=%d macroEng=%d smart=%d remember=%d tsf=%d gray=%d metro=%d chromium=%d switch=0x%08X convertHotkey=0x%08X",
+		vLanguage, vInputType, vCodeTable, vCheckSpelling, vUseModernOrthography,
+		vRestoreIfWrongSpelling, vUseMacro, vUseMacroInEnglishMode, vUseSmartSwitchKey,
+		vRememberCode, vUseTSFInput, vUseGrayIcon, vSupportMetroApp, vFixChromiumBrowser,
+		vSwitchKeyStatus, convertToolHotKey);
 
 	pData = (vKeyHookState*)vKeyInit();
+	DEBUG_LOG(L"OpenKey engine state initialized pData=0x%p", pData);
 
 	//pre-create back key
 	backspaceEvent[0].type = INPUT_KEYBOARD;
@@ -158,22 +182,26 @@ void OpenKeyInit() {
 	DWORD macroDataSize;
 	BYTE* macroData = OpenKeyHelper::getRegBinary(_T("macroData"), macroDataSize);
 	initMacroMap((Byte*)macroData, (int)macroDataSize);
+	DEBUG_LOG(L"macro data loaded: bytes=%lu", macroDataSize);
 
 	//init and load smart switch key data
 	DWORD smartSwitchKeySize;
 	BYTE* data = OpenKeyHelper::getRegBinary(_T("smartSwitchKey"), smartSwitchKeySize);
 	initSmartSwitchKey((Byte*)data, (int)smartSwitchKeySize);
+	DEBUG_LOG(L"smart switch data loaded: bytes=%lu", smartSwitchKeySize);
 
 	//init hook
 	HINSTANCE hInstance = GetModuleHandle(NULL);
 	hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboardHookProcess, hInstance, 0);
 	hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, mouseHookProcess, hInstance, 0);
 	hSystemEvent = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, winEventProcCallback, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
+	DEBUG_LOG(L"hooks initialized: keyboard=0x%p mouse=0x%p event=0x%p lastError=%lu", hKeyboardHook, hMouseHook, hSystemEvent, GetLastError());
 }
 
 void saveSmartSwitchKeyData() {
 	getSmartSwitchKeySaveData(savedSmartSwitchKeyData);
 	OpenKeyHelper::setRegBinary(_T("smartSwitchKey"), savedSmartSwitchKeyData.data(), (int)savedSmartSwitchKeyData.size());
+	DEBUG_LOG(L"smart switch saved: bytes=%llu", (unsigned long long)savedSmartSwitchKeyData.size());
 }
 
 int getCurrentAppInputMode() {
@@ -185,6 +213,7 @@ void setCurrentAppInputMode(const int& appInputMode) {
 	if (exe.compare("explorer.exe") == 0)
 		return;
 	_appInputMode = appInputMode;
+	DEBUG_LOG(L"set current app mode: exe=%S mode=%d", exe.c_str(), appInputMode);
 	setAppInputMode(exe, appInputMode);
 	saveSmartSwitchKeyData();
 	startNewSession();
@@ -226,6 +255,7 @@ static void SendCombineKey(const Uint16& key1, const Uint16& key2, const DWORD& 
 }
 
 static void SendKeyCode(Uint32 data) {
+	DEBUG_LOG(L"SendKeyCode: data=0x%08X codeTable=%d sync=%llu", data, vCodeTable, (unsigned long long)_syncKey.size());
 	_newChar = (Uint16)data;
 	if (!(data & CHAR_CODE_MASK)) {
 		if (IS_DOUBLE_CODE(vCodeTable)) //VNI
@@ -284,6 +314,7 @@ static void SendKeyCode(Uint32 data) {
 }
 
 static void SendBackspace() {
+	DEBUG_LOG(L"SendBackspace: codeTable=%d sync=%llu app=%S", vCodeTable, (unsigned long long)_syncKey.size(), OpenKeyHelper::getLastAppExecuteName().c_str());
 	SendInput(2, backspaceEvent, sizeof(INPUT));
 	if (vSupportMetroApp && OpenKeyHelper::getLastAppExecuteName().compare("ApplicationFrameHost.exe") == 0) {//Metro App
 		SendMessage(HWND_BROADCAST, WM_CHAR, VK_BACK, 0L);
@@ -305,6 +336,7 @@ static void SendBackspace() {
 }
 
 static void SendEmptyCharacter() {
+	DEBUG_LOG(L"SendEmptyCharacter: codeTable=%d sync=%llu", vCodeTable, (unsigned long long)_syncKey.size());
 	if (IS_DOUBLE_CODE(vCodeTable)) //VNI or Unicode Compound
 		InsertKeyLength(1);
 
@@ -316,6 +348,7 @@ static void SendEmptyCharacter() {
 }
 
 static void SendNewCharString(const bool& dataFromMacro = false) {
+	DEBUG_LOG(L"SendNewCharString begin: macro=%d code=%d backspace=%u newChar=%u macroData=%llu", dataFromMacro ? 1 : 0, pData->code, pData->backspaceCount, pData->newCharCount, (unsigned long long)pData->macroData.size());
 	_j = 0;
 	_newCharSize = dataFromMacro ? (Uint16)pData->macroData.size() : pData->newCharCount;
 	if (_newCharString.size() < _newCharSize) {
@@ -389,6 +422,7 @@ static void SendNewCharString(const bool& dataFromMacro = false) {
 
 	//Send shift + insert
 	SendCombineKey(KEY_LEFT_SHIFT, VK_INSERT, 0, KEYEVENTF_EXTENDEDKEY);
+	DEBUG_LOG(L"SendNewCharString end: sentChars=%u willSendControl=%d", _newCharSize, _willSendControlKey ? 1 : 0);
 	
 	//the case when hCode is vRestore or vRestoreAndStartNewSession,
 	//the word is invalid and last key is control key such as TAB, LEFT ARROW, RIGHT ARROW,...
@@ -422,6 +456,7 @@ void switchLanguage() {
 		vLanguage = 0;
 	if (HAS_BEEP(vSwitchKeyStatus))
 		MessageBeep(MB_OK);
+	DEBUG_LOG(L"switchLanguage: vLanguage=%d flag=0x%08X keycode=%u", vLanguage, _flag, _keycode);
 	AppDelegate::getInstance()->onInputMethodChangedFromHotKey();
 	if (vUseSmartSwitchKey) {
 		setAppInputMethodStatus(OpenKeyHelper::getFrontMostAppExecuteName(), makeAppInputMethodStatus(vLanguage, vCodeTable));
@@ -431,6 +466,7 @@ void switchLanguage() {
 }
 
 static void SendPureCharacter(const Uint16& ch) {
+	DEBUG_LOG(L"SendPureCharacter: ch=0x%04X", ch);
 	if (ch < 128)
 		SendKeyCode(ch);
 	else {
@@ -444,6 +480,7 @@ static void SendPureCharacter(const Uint16& ch) {
 }
 
 static void handleMacro() {
+	DEBUG_LOG(L"handleMacro begin: backspace=%u macroKey=%llu macroData=%llu fixRecommend=%d", pData->backspaceCount, (unsigned long long)pData->macroKey.size(), (unsigned long long)pData->macroData.size(), vFixRecommendBrowser);
 	//fix autocomplete
 	if (vFixRecommendBrowser) {
 		SendEmptyCharacter();
@@ -469,6 +506,7 @@ static void handleMacro() {
 		}
 	}
 	SendKeyCode(_keycode | (_flag & MASK_SHIFT ? CAPS_MASK : 0));
+	DEBUG_LOG(L"handleMacro end: keycode=%u flag=0x%08X", _keycode, _flag);
 }
 
 static bool SetModifierMask(const Uint16& vkCode) {
@@ -508,8 +546,15 @@ static bool UnsetModifierMask(const Uint16& vkCode) {
 
 LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	keyboardData = (KBDLLHOOKSTRUCT *)lParam;
+	if (keyboardData) {
+		DEBUG_LOG(L"keyboard hook: nCode=%d msg=0x%04X vk=%lu scan=%lu flags=0x%08X extra=0x%p stateFlag=0x%08X lastFlag=0x%08X tsf=%d appMode=%d lang=%d",
+			nCode, (unsigned int)wParam, keyboardData->vkCode, keyboardData->scanCode,
+			keyboardData->flags, (void*)keyboardData->dwExtraInfo, _flag, _lastFlag,
+			vUseTSFInput, _appInputMode, vLanguage);
+	}
 	//ignore my event
 	if (keyboardData->dwExtraInfo != 0) {
+		DEBUG_LOG(L"keyboard hook pass-through: injected extra=0x%p", (void*)keyboardData->dwExtraInfo);
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 	
@@ -518,6 +563,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	HWND hIME = ImmGetDefaultIMEWnd(hWnd);
 	LRESULT isImeON = SendMessage(hIME, WM_IME_CONTROL, IMC_GETOPENSTATUS, 0);
 	if (isImeON) {
+		DEBUG_LOG(L"keyboard hook pass-through: IME pad/open status active hwnd=0x%p ime=0x%p", hWnd, hIME);
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 	
@@ -525,12 +571,15 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
 		//LOG(L"Key down: %d\n", keyboardData->vkCode);
 		SetModifierMask((Uint16)keyboardData->vkCode);
+		DEBUG_LOG(L"keyboard keydown modifiers: vk=%lu isFlag=%d flag=0x%08X", keyboardData->vkCode, _isFlagKey ? 1 : 0, _flag);
 	} else if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP) {
 		//LOG(L"Key up: %d\n", keyboardData->vkCode);
 		UnsetModifierMask((Uint16)keyboardData->vkCode);
+		DEBUG_LOG(L"keyboard keyup modifiers: vk=%lu isFlag=%d flag=0x%08X", keyboardData->vkCode, _isFlagKey ? 1 : 0, _flag);
 	}
 	if (!_isFlagKey && wParam != WM_KEYUP && wParam != WM_SYSKEYUP)
 		_keycode = (Uint16)keyboardData->vkCode;
+	DEBUG_LOG(L"keyboard state after modifier handling: keycode=%u flag=0x%08X lastFlag=0x%08X isFlag=%d", _keycode, _flag, _lastFlag, _isFlagKey ? 1 : 0);
 
 	//switch language shortcut; convert hotkey
 	if ((wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) && !_isFlagKey && _keycode != 0) {
@@ -538,12 +587,14 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 			_lastFlag = 0;
 		} else {
 			if (GET_SWITCH_KEY(vSwitchKeyStatus) == _keycode && checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)) {
+				DEBUG_LOG(L"keyboard hotkey: switch language keycode=%u", _keycode);
 				switchLanguage();
 				_hasJustUsedHotKey = true;
 				_keycode = 0;
 				return -1;
 			}
 			if (GET_SWITCH_KEY(convertToolHotKey) == _keycode && checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
+				DEBUG_LOG(L"keyboard hotkey: quick convert keycode=%u", _keycode);
 				AppDelegate::getInstance()->onQuickConvert();
 				_hasJustUsedHotKey = true;
 				_keycode = 0;
@@ -557,18 +608,22 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 		else if (_lastFlag > _flag) {
 			//check switch
 			if (checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)) {
+				DEBUG_LOG(L"keyboard modifier hotkey: switch language flag=0x%08X", _lastFlag);
 				switchLanguage();
 				_hasJustUsedHotKey = true;
 			}
 			if (checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
+				DEBUG_LOG(L"keyboard modifier hotkey: quick convert flag=0x%08X", _lastFlag);
 				AppDelegate::getInstance()->onQuickConvert();
 				_hasJustUsedHotKey = true;
 			}
 			//check temporarily turn off spell checking
 			if (vTempOffSpelling && !_hasJustUsedHotKey && _lastFlag & MASK_CONTROL) {
+				DEBUG_LOG(L"keyboard modifier action: temporary spelling off");
 				vTempOffSpellChecking();
 			}
 			if (vTempOffOpenKey && !_hasJustUsedHotKey && _lastFlag & MASK_ALT) {
+				DEBUG_LOG(L"keyboard modifier action: temporary engine off");
 				vTempOffEngine();
 			}
 			_lastFlag = _flag;
@@ -579,22 +634,26 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	}
 
 	if (vUseTSFInput) {
+		DEBUG_LOG(L"keyboard pass-through: TSF input mode active");
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 
 	if (_appInputMode == vAppInputModeDisabled) {
+		DEBUG_LOG(L"keyboard pass-through: current app disabled mode");
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 
 	//if is in english mode
 	if (vLanguage == 0) {
 		if (vUseMacro && vUseMacroInEnglishMode && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)) {
+			DEBUG_LOG(L"keyboard English-mode macro path: keycode=%u", _keycode);
 			vEnglishMode(((wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) ? vKeyEventState::KeyDown : vKeyEventState::MouseDown),
 				_keycode,
 				(_flag & MASK_SHIFT) || (_flag & MASK_CAPITAL),
 				OTHER_CONTROL_KEY);
 
 			if (pData->code == vReplaceMaro) { //handle macro in english mode
+				DebugLogHookState(L"English macro hook state");
 				handleMacro();
 				return NULL;
 			}
@@ -605,12 +664,17 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	//handle keyboard
 	if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
 		//send event signal to Engine
+		DEBUG_LOG(L"engine event before vKeyHandleEvent: keycode=%u capsStatus=%u otherControl=%d", _keycode,
+			(_flag & MASK_SHIFT && _flag & MASK_CAPITAL) ? 0 : (_flag & MASK_SHIFT ? 1 : (_flag & MASK_CAPITAL ? 2 : 0)),
+			OTHER_CONTROL_KEY ? 1 : 0);
 		vKeyHandleEvent(vKeyEvent::Keyboard,
 						vKeyEventState::KeyDown,
 						_keycode,
 						(_flag & MASK_SHIFT && _flag & MASK_CAPITAL) ? 0 : (_flag & MASK_SHIFT ? 1 : (_flag & MASK_CAPITAL ? 2 : 0)),
 						OTHER_CONTROL_KEY);
+		DebugLogHookState(L"engine event after vKeyHandleEvent");
 		if (pData->code == vDoNothing) { //do nothing
+			DEBUG_LOG(L"engine result: do nothing ext=%u", pData->extCode);
 			if (IS_DOUBLE_CODE(vCodeTable)) { //VNI
 				if (pData->extCode == 1) { //break key
 					_syncKey.clear();
@@ -628,6 +692,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 			}
 			return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 		} else if (pData->code == vWillProcess || pData->code == vRestore || pData->code == vRestoreAndStartNewSession) { //handle result signal
+			DEBUG_LOG(L"engine result: replacement path code=%d backspace=%u newChar=%u", pData->code, pData->backspaceCount, pData->newCharCount);
 			//fix autocomplete
 			if (vFixRecommendBrowser && pData->extCode != 4) {
 				if (vFixChromiumBrowser && 
@@ -665,15 +730,19 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 				}
 			}
 		} else if (pData->code == vReplaceMaro) { //MACRO
+			DEBUG_LOG(L"engine result: macro path backspace=%u macroData=%llu", pData->backspaceCount, (unsigned long long)pData->macroData.size());
 			handleMacro();
 		}
+		DEBUG_LOG(L"keyboard consumed by OpenKey");
 		return -1; //consume event
 	}
+	DEBUG_LOG(L"keyboard pass-through: non-keydown message=0x%04X", (unsigned int)wParam);
 	return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 }
 
 LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	mouseData = (MSLLHOOKSTRUCT *)lParam;
+	DEBUG_LOG(L"mouse hook: nCode=%d msg=0x%04X x=%ld y=%ld extra=0x%p", nCode, (unsigned int)wParam, mouseData ? mouseData->pt.x : 0, mouseData ? mouseData->pt.y : 0, mouseData ? (void*)mouseData->dwExtraInfo : 0);
 	switch (wParam) {
 	case WM_LBUTTONDOWN:
 	
@@ -688,6 +757,7 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	case WM_NCXBUTTONUP:
 		//send event signal to Engine
 		vKeyHandleEvent(vKeyEvent::Mouse, vKeyEventState::MouseDown, 0);
+		DebugLogHookState(L"mouse event hook state");
 		if (IS_DOUBLE_CODE(vCodeTable)) { //VNI
 			_syncKey.clear();
 		}
@@ -697,34 +767,45 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 }
 
 VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime) {
+	DEBUG_LOG(L"foreground event: event=%lu hwnd=0x%p object=%ld child=%ld thread=%lu time=%lu", dwEvent, hwnd, idObject, idChild, dwEventThread, dwmsEventTime);
 	_appInputMode = vAppInputModeDefault;
 	//smart switch key
 	if (vUseSmartSwitchKey || vRememberCode) {
 		string& exe = OpenKeyHelper::getFrontMostAppExecuteName();
+		DEBUG_LOG(L"foreground app: exe=%S smart=%d remember=%d", exe.c_str(), vUseSmartSwitchKey, vRememberCode);
 		if (exe.compare("explorer.exe") == 0) { //dont apply with windows explorer
+			DEBUG_LOG(L"foreground explorer ignored");
 			SystemTrayHelper::updateData();
 			return;
 		}
 		_languageTemp = getAppInputMethodStatus(exe, makeAppInputMethodStatus(vLanguage, vCodeTable));
 		_appInputMode = getAppInputMode(exe);
+		DEBUG_LOG(L"foreground state resolved: languageTemp=%d appMode=%d currentLang=%d codeTable=%d", _languageTemp, _appInputMode, vLanguage, vCodeTable);
 		SystemTrayHelper::updateData();
 		vTempOffEngine(false);
-		if (vUseSmartSwitchKey && (_languageTemp & 0x01) != vLanguage) {
-			if (_languageTemp != -1) {
-				vLanguage = _languageTemp;
-				AppDelegate::getInstance()->onInputMethodChangedFromHotKey();
-			} else {
-				saveSmartSwitchKeyData();
+		if (!vUseTSFInput) {
+			// In TSF mode the TIP manages per-app language in each host process.
+			// Changing vLanguage/vCodeTable here would corrupt the registry values
+			// that the TIP reads via ReloadConfig(), causing it to start in English mode.
+			if (vUseSmartSwitchKey && (_languageTemp & 0x01) != vLanguage) {
+				if (_languageTemp != -1) {
+					vLanguage = _languageTemp;
+					DEBUG_LOG(L"foreground applied smart language=%d", vLanguage);
+					AppDelegate::getInstance()->onInputMethodChangedFromHotKey();
+				} else {
+					saveSmartSwitchKeyData();
+				}
+			}
+			if (vRememberCode && (_languageTemp >> 1) != vCodeTable) { //for remember table code feature
+				if (_languageTemp != -1) {
+					DEBUG_LOG(L"foreground applied remembered codeTable=%d", _languageTemp >> 1);
+					AppDelegate::getInstance()->onTableCode(_languageTemp >> 1);
+				} else {
+					saveSmartSwitchKeyData();
+				}
 			}
 		}
 		startNewSession();
-		if (vRememberCode && (_languageTemp >> 1) != vCodeTable) { //for remember table code feature
-			if (_languageTemp != -1) {
-				AppDelegate::getInstance()->onTableCode(_languageTemp >> 1);
-			} else {
-				saveSmartSwitchKeyData();
-			}
-		}
 		if (vSupportMetroApp && exe.compare("ApplicationFrameHost.exe") == 0) {//Metro App
 			SendMessage(HWND_BROADCAST, WM_CHAR, VK_BACK, 0L);
 			SendMessage(HWND_BROADCAST, WM_CHAR, VK_BACK, 0L);

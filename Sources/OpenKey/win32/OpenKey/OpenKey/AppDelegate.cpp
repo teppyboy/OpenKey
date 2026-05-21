@@ -96,23 +96,29 @@ AppDelegate * AppDelegate::getInstance() {
 }
 
 int AppDelegate::run(HINSTANCE hInstance) {
+	DebugLogInit();
+	DEBUG_LOG(L"AppDelegate::run hInstance=0x%p", hInstance);
 	this->hInstance = hInstance;
 
 	//check app has already run or not
 	HWND previousInstance = FindWindow(APP_CLASS, NULL);
 	if (previousInstance) {
+		DEBUG_LOG(L"existing OpenKey instance detected hwnd=0x%p", previousInstance);
 		MessageBeep(MB_OK);
 		SendMessage(previousInstance, WM_USER + 2019, 0, 0);
 		PostQuitMessage(0);
+		DebugLogShutdown();
 		return 0;
 	}
 
 	//init OpenKey Engine
 	OpenKeyManager::initEngine();
+	DEBUG_LOG(L"OpenKey engine initialized");
 
 	//create system tray
 	SystemTrayHelper::createSystemTrayIcon(hInstance);
 	SystemTrayHelper::updateData();
+	DEBUG_LOG(L"system tray created and initialized");
 
 	//create main control
 	if (vShowOnStartUp)
@@ -134,6 +140,8 @@ int AppDelegate::run(HINSTANCE hInstance) {
 			DispatchMessage(&msg);
 		}
 	}
+	DEBUG_LOG(L"AppDelegate::run message loop exited");
+	DebugLogShutdown();
 	return 0;
 }
 
@@ -165,6 +173,7 @@ void AppDelegate::closeDialog(BaseDialog * dialog) {
 
 void AppDelegate::onInputMethodChangedFromHotKey() {
 	APP_SET_DATA(vLanguage, vLanguage);
+	DEBUG_LOG(L"input method changed: vLanguage=%d vCodeTable=%d", vLanguage, vCodeTable);
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
@@ -172,6 +181,7 @@ void AppDelegate::onInputMethodChangedFromHotKey() {
 }
 
 void AppDelegate::onDefaultConfig() {
+	DEBUG_LOG(L"reset default config requested");
 	APP_SET_DATA(vLanguage, 1);
 	APP_SET_DATA(vInputType, 0);
 	vFreeMark = 0;
@@ -209,6 +219,7 @@ void AppDelegate::onDefaultConfig() {
 
 void AppDelegate::onToggleVietnamese() {
 	APP_SET_DATA(vLanguage, vLanguage ? 0 : 1);
+	DEBUG_LOG(L"toggle Vietnamese: vLanguage=%d", vLanguage);
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
@@ -222,6 +233,7 @@ void AppDelegate::onToggleVietnamese() {
 
 void AppDelegate::onToggleCheckSpelling() {
 	APP_SET_DATA(vCheckSpelling, vCheckSpelling ? 0 : 1);
+	DEBUG_LOG(L"toggle spelling: vCheckSpelling=%d", vCheckSpelling);
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
@@ -230,24 +242,56 @@ void AppDelegate::onToggleCheckSpelling() {
 
 void AppDelegate::onToggleUseSmartSwitchKey() {
 	APP_SET_DATA(vUseSmartSwitchKey, vUseSmartSwitchKey ? 0 : 1);
+	DEBUG_LOG(L"toggle smart switch: vUseSmartSwitchKey=%d", vUseSmartSwitchKey);
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
 }
 
 void AppDelegate::onToggleCurrentAppDisabled() {
+	DEBUG_LOG(L"toggle current app disabled: currentMode=%d", getCurrentAppInputMode());
 	setCurrentAppInputMode(getCurrentAppInputMode() == vAppInputModeDisabled ? vAppInputModeDefault : vAppInputModeDisabled);
 }
 
 void AppDelegate::onToggleUseMacro() {
 	APP_SET_DATA(vUseMacro, vUseMacro ? 0 : 1);
+	DEBUG_LOG(L"toggle macro: vUseMacro=%d", vUseMacro);
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
 }
 
 void AppDelegate::onToggleUseTSFInput() {
-	APP_SET_DATA(vUseTSFInput, vUseTSFInput ? 0 : 1);
+	DEBUG_LOG(L"toggle TSF requested: current=%d registered=%d", vUseTSFInput, TSFRegistrationHelper::isTIPRegistered());
+	if (vUseTSFInput) {
+		APP_SET_DATA(vUseTSFInput, 0);
+		DEBUG_LOG(L"TSF disabling: unregister TIP");
+		if (!TSFRegistrationHelper::unregisterTIP(false)) {
+			DEBUG_LOG(L"TSF unregister failed while disabling");
+			MessageBox(NULL,
+				_T("Cannot remove OpenKey IME from Windows."),
+				_T("OpenKey IME"),
+				MB_OK | MB_ICONERROR);
+		}
+	} else {
+		DEBUG_LOG(L"TSF enabling: register and activate TIP");
+		if (!TSFRegistrationHelper::registerTIP(false) || !TSFRegistrationHelper::activateTIP()) {
+			DEBUG_LOG(L"TSF register or activate failed; unregister rollback");
+			TSFRegistrationHelper::unregisterTIP(false);
+			MessageBox(NULL,
+				_T("Cannot install or activate OpenKey IME in Windows."),
+				_T("OpenKey IME"),
+				MB_OK | MB_ICONERROR);
+			if (mainDialog) {
+				mainDialog->fillData();
+			}
+			SystemTrayHelper::updateData();
+			return;
+		}
+		APP_SET_DATA(vUseTSFInput, 1);
+		DEBUG_LOG(L"TSF enabled");
+	}
+
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
@@ -255,7 +299,9 @@ void AppDelegate::onToggleUseTSFInput() {
 }
 
 void AppDelegate::onRegisterTIP() {
+	DEBUG_LOG(L"manual TIP register requested");
 	bool success = TSFRegistrationHelper::registerTIP(false);
+	DEBUG_LOG(L"manual TIP register result=%d", success ? 1 : 0);
 	MessageBox(NULL,
 		success ? _T("OpenKey IME was installed into Windows.") : _T("Cannot install OpenKey IME into Windows."),
 		_T("OpenKey IME"),
@@ -264,11 +310,18 @@ void AppDelegate::onRegisterTIP() {
 }
 
 void AppDelegate::onUnregisterTIP() {
+	DEBUG_LOG(L"manual TIP unregister requested");
 	bool success = TSFRegistrationHelper::unregisterTIP(false);
+	DEBUG_LOG(L"manual TIP unregister result=%d", success ? 1 : 0);
+	if (success)
+		APP_SET_DATA(vUseTSFInput, 0);
 	MessageBox(NULL,
 		success ? _T("OpenKey IME was removed from Windows.") : _T("Cannot remove OpenKey IME from Windows."),
 		_T("OpenKey IME"),
 		success ? MB_OK | MB_ICONINFORMATION : MB_OK | MB_ICONERROR);
+	if (mainDialog) {
+		mainDialog->fillData();
+	}
 	SystemTrayHelper::updateData();
 }
 
@@ -303,6 +356,7 @@ void AppDelegate::onQuickConvert() {
 
 void AppDelegate::onInputType(const int & type) {
 	APP_SET_DATA(vInputType, type);
+	DEBUG_LOG(L"input type changed: vInputType=%d", vInputType);
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
@@ -310,6 +364,7 @@ void AppDelegate::onInputType(const int & type) {
 
 void AppDelegate::onTableCode(const int & code) {
 	APP_SET_DATA(vCodeTable, code);
+	DEBUG_LOG(L"table code changed: vCodeTable=%d", vCodeTable);
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
@@ -333,6 +388,12 @@ void AppDelegate::onOpenKeyAbout() {
 }
 
 void AppDelegate::onOpenKeyExit() {
+	DEBUG_LOG(L"OpenKey exit requested: vUseTSFInput=%d registered=%d", vUseTSFInput, TSFRegistrationHelper::isTIPRegistered());
+	if (vUseTSFInput || TSFRegistrationHelper::isTIPRegistered()) {
+		TSFRegistrationHelper::unregisterTIP(false);
+		APP_SET_DATA(vUseTSFInput, 0);
+		DEBUG_LOG(L"TIP unregistered during exit");
+	}
 	OpenKeyManager::freeEngine();
 	SystemTrayHelper::removeSystemTray();
 	PostQuitMessage(0);

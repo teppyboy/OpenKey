@@ -1,8 +1,10 @@
 #include "..\..\engine\DataType.h"
 #include "..\..\engine\Engine.h"
 #include "..\..\engine\EngineOutput.h"
+#include "..\..\engine\Vietnamese.h"
 
 #include <stdio.h>
+#include <string>
 
 int vLanguage = 1;
 int vInputType = vTelex;
@@ -82,6 +84,78 @@ static bool TestTelexComposition()
     return true;
 }
 
+static bool AppendEditText(const std::vector<Uint32>& data, std::wstring* text)
+{
+    for (size_t i = 0; i < data.size(); i++) {
+        Uint32 ch = data[i];
+        if (ch & PURE_CHARACTER_MASK) {
+            text->push_back((wchar_t)(ch & CHAR_MASK));
+            continue;
+        }
+        if (!(ch & CHAR_CODE_MASK)) {
+            Uint16 plain = keyCodeToCharacter(ch);
+            if (plain == 0) {
+                return false;
+            }
+            text->push_back((wchar_t)plain);
+            continue;
+        }
+        text->push_back((wchar_t)(ch & CHAR_MASK));
+    }
+    return true;
+}
+
+static bool ApplyKey(vKeyHookState* state, Uint16 keyCode, std::wstring* text)
+{
+    vKeyHandleEvent(Keyboard, KeyDown, keyCode, 0, false);
+    vEngineEditOp op = vBuildEditOpFromHookState(state);
+    if (op.type == vEngineEditOpNone) {
+        Uint16 plain = keyCodeToCharacter(keyCode);
+        if (plain != 0) {
+            text->push_back((wchar_t)plain);
+        }
+        return true;
+    }
+    if (op.type != vEngineEditOpReplaceText &&
+        op.type != vEngineEditOpRestoreText &&
+        op.type != vEngineEditOpRestoreAndStartNewSession) {
+        return true;
+    }
+    if (op.backspaceCount > text->size()) {
+        return false;
+    }
+    text->erase(text->size() - op.backspaceCount);
+    return AppendEditText(op.text, text);
+}
+
+static bool TestTelexDdoasOrder()
+{
+    vKeyHookState* state = static_cast<vKeyHookState*>(vKeyInit());
+    if (state == nullptr) {
+        return Fail("vKeyInit returned null for ddoas test");
+    }
+    startNewSession();
+
+    std::wstring text;
+    if (!ApplyKey(state, KEY_D, &text) ||
+        !ApplyKey(state, KEY_D, &text) ||
+        !ApplyKey(state, KEY_O, &text) ||
+        !ApplyKey(state, KEY_A, &text) ||
+        !ApplyKey(state, KEY_S, &text)) {
+        return Fail("ddoas edit sequence failed");
+    }
+
+    std::wstring expected;
+    expected.push_back((wchar_t)0x0111);
+    expected.push_back((wchar_t)0x00f3);
+    expected.push_back(L'a');
+    if (text != expected) {
+        return Fail("ddoas did not produce expected character order");
+    }
+
+    return true;
+}
+
 int main()
 {
     if (!TestNullHookState()) {
@@ -91,6 +165,9 @@ int main()
         return 1;
     }
     if (!TestTelexComposition()) {
+        return 1;
+    }
+    if (!TestTelexDdoasOrder()) {
         return 1;
     }
 

@@ -80,16 +80,24 @@
     <OpenKeyTIPMsctfLib Condition="Exists('$(WindowsSdkDir)Lib\$(WindowsTargetPlatformVersion)\um\$(OpenKeyTIPLibPlatform)\msctf.lib')">msctf.lib;</OpenKeyTIPMsctfLib>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(MSBuildProjectDirectory)\..\OpenKey\Win32\Debug\</OutDir>
     <LinkIncremental>true</LinkIncremental>
+    <TargetName>OpenKeyTIP32</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(MSBuildProjectDirectory)\..\OpenKey\x64\Debug\</OutDir>
     <LinkIncremental>true</LinkIncremental>
+    <TargetName>OpenKeyTIP64</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(MSBuildProjectDirectory)\..\OpenKey\Win32\Release\</OutDir>
     <LinkIncremental>false</LinkIncremental>
+    <TargetName>OpenKeyTIP32</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(MSBuildProjectDirectory)\..\OpenKey\x64\Release\</OutDir>
     <LinkIncremental>false</LinkIncremental>
+    <TargetName>OpenKeyTIP64</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -195,6 +203,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="OpenKeyTIP.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="OpenKeyTIP.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

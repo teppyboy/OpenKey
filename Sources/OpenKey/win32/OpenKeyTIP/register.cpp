@@ -162,27 +162,42 @@ STDAPI DllRegisterServer()
     HRESULT firstFailure = S_OK;
 
     hr = CoCreateInstance(CLSID_TF_InputProcessorProfiles, NULL, CLSCTX_INPROC_SERVER, IID_ITfInputProcessorProfiles, (void **)&profiles);
-    if (SUCCEEDED(hr))
+    SaveFirstFailure(hr, &firstFailure);
+
+    if (SUCCEEDED(firstFailure))
     {
+        hr = CoCreateInstance(CLSID_TF_CategoryMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfCategoryMgr, (void **)&categoryMgr);
+        SaveFirstFailure(hr, &firstFailure);
+    }
+
+    if (SUCCEEDED(firstFailure))
+    {
+        HRESULT ignoredFailure = S_OK;
+        RemoveTsfRegistration(profiles, categoryMgr, &ignoredFailure);
+
         hr = profiles->Register(CLSID_OpenKeyTIP);
         if (SUCCEEDED(hr))
         {
             hr = profiles->AddLanguageProfile(CLSID_OpenKeyTIP, LANGID_OpenKeyVietnamese, GUID_OpenKeyProfile,
                 OpenKeyDescription, (ULONG)lstrlenW(OpenKeyDescription), dllPath, (ULONG)lstrlenW(dllPath), 0);
         }
+        if (SUCCEEDED(hr))
+        {
+            hr = profiles->EnableLanguageProfile(CLSID_OpenKeyTIP, LANGID_OpenKeyVietnamese, GUID_OpenKeyProfile, TRUE);
+        }
+        if (SUCCEEDED(hr))
+        {
+            profiles->EnableLanguageProfileByDefault(CLSID_OpenKeyTIP, LANGID_OpenKeyVietnamese, GUID_OpenKeyProfile, TRUE);
+        }
+        SaveFirstFailure(hr, &firstFailure);
     }
-    SaveFirstFailure(hr, &firstFailure);
 
     if (SUCCEEDED(firstFailure))
     {
-        hr = CoCreateInstance(CLSID_TF_CategoryMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfCategoryMgr, (void **)&categoryMgr);
-        if (SUCCEEDED(hr))
-        {
-            hr = categoryMgr->RegisterCategory(CLSID_OpenKeyTIP, GUID_TFCAT_TIP_KEYBOARD, CLSID_OpenKeyTIP);
-            SaveFirstFailure(hr, &firstFailure);
+        hr = categoryMgr->RegisterCategory(CLSID_OpenKeyTIP, GUID_TFCAT_TIP_KEYBOARD, CLSID_OpenKeyTIP);
+        SaveFirstFailure(hr, &firstFailure);
 
-            hr = categoryMgr->RegisterCategory(CLSID_OpenKeyTIP, GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, CLSID_OpenKeyTIP);
-        }
+        hr = categoryMgr->RegisterCategory(CLSID_OpenKeyTIP, GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, CLSID_OpenKeyTIP);
         SaveFirstFailure(hr, &firstFailure);
     }
 

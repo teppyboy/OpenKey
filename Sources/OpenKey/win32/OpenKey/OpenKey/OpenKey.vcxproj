@@ -71,16 +71,24 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(MSBuildProjectDirectory)\..\Win32\Debug\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(MSBuildProjectDirectory)\..\x64\Debug\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(MSBuildProjectDirectory)\..\Win32\Release\</OutDir>
     <LinkIncremental>false</LinkIncremental>
     <TargetName>$(ProjectName)32</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(MSBuildProjectDirectory)\..\x64\Release\</OutDir>
     <LinkIncremental>false</LinkIncremental>
     <TargetName>$(ProjectName)64</TargetName>
   </PropertyGroup>
@@ -167,6 +175,7 @@
     <ClInclude Include="AppDelegate.h" />
     <ClInclude Include="BaseDialog.h" />
     <ClInclude Include="ConvertToolDialog.h" />
+    <ClInclude Include="DebugLog.h" />
     <ClInclude Include="MacroDialog.h" />
     <ClInclude Include="MainControlDialog.h" />
     <ClInclude Include="OpenKeyHelper.h" />
@@ -187,6 +196,7 @@
     <ClCompile Include="AppDelegate.cpp" />
     <ClCompile Include="BaseDialog.cpp" />
     <ClCompile Include="ConvertToolDialog.cpp" />
+    <ClCompile Include="DebugLog.cpp" />
     <ClCompile Include="MacroDialog.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MainControlDialog.cpp" />

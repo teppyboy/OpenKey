@@ -1,5 +1,3 @@
-LIBRARY "OpenKeyTIP"
-
 EXPORTS
     DllGetClassObject PRIVATE
     DllCanUnloadNow PRIVATE

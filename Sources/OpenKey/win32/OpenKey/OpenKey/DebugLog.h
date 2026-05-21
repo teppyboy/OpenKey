@@ -12,12 +12,14 @@ You can fork, modify, improve this program. If you
 redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #pragma once
-#include "stdafx.h"
 
-namespace TSFRegistrationHelper {
-	bool isTIPRegistered();
-	bool registerTIP(bool elevated);
-	bool unregisterTIP(bool elevated);
-	bool activateTIP();
-	std::wstring getTIPDllPath();
-}
+#ifdef _DEBUG
+void DebugLogInit();
+void DebugLogShutdown();
+void DebugLog(const wchar_t* format, ...);
+#define DEBUG_LOG(...) DebugLog(__VA_ARGS__)
+#else
+inline void DebugLogInit() {}
+inline void DebugLogShutdown() {}
+#define DEBUG_LOG(...) ((void)0)
+#endif

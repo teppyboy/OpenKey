@@ -39,6 +39,7 @@ redistribute your new version, it MUST be open source.
 #include <psapi.h>
 
 #include "resource.h"
+#include "DebugLog.h"
 
 #include "../../../engine/Engine.h"
 

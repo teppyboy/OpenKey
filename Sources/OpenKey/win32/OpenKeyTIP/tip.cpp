@@ -564,7 +564,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
             }
             else
             {
-                hr = RequestEditSession(pic, CEditSession::OperationUpdateComposition, text);
+                hr = RequestEditSession(pic, CEditSession::OperationReplaceLeftText, text, op.backspaceCount);
                 if (SUCCEEDED(hr))
                 {
                     *pfEaten = TRUE;
@@ -606,7 +606,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
             }
             else
             {
-                hr = RequestEditSession(pic, CEditSession::OperationCommitComposition, text);
+                hr = RequestEditSession(pic, CEditSession::OperationReplaceLeftText, text, op.backspaceCount);
                 if (SUCCEEDED(hr))
                 {
                     *pfEaten = TRUE;

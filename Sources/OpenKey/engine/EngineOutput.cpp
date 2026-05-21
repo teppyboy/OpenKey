@@ -14,7 +14,7 @@ static void vCopyHookText(vEngineEditOp& op, const vKeyHookState* state) {
     }
 
     op.text.reserve(count);
-    for (Byte i = 0; i < count; i++) {
+    for (int i = count - 1; i >= 0; i--) {
         op.text.push_back(state->charData[i]);
     }
 }
