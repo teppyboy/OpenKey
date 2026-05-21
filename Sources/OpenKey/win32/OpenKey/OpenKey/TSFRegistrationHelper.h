@@ -20,6 +20,8 @@ namespace TSFRegistrationHelper {
 	bool deactivateTIP();
 	bool unregisterTIP(bool elevated);
 	bool activateTIP();
+	bool removeDefaultVietnameseIME();
+	bool suppressNonOpenKeyVietnameseTIPs();
 	bool forceUnloadTIPFromAllProcesses();
 	std::wstring getTIPDllPath();
 }

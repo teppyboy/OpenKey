@@ -44,6 +44,7 @@ int vTempOffOpenKey = 0;
 int vUseTSFInput = 0;
 int vForceUnloadTSFDLL = 0;
 int vTSFBackspaceCompatibility = 0;
+int vHideWindowsVietnameseIME = 0;
 
 int vUseGrayIcon = 0;
 int vShowOnStartUp = 0;
@@ -117,9 +118,22 @@ int AppDelegate::run(HINSTANCE hInstance) {
 	OpenKeyManager::initEngine();
 	DEBUG_LOG(L"OpenKey engine initialized");
 	if (vUseTSFInput) {
-		DEBUG_LOG(L"TSF enabled at startup: register and activate TIP");
-		if (!TSFRegistrationHelper::registerTIP(false) || !TSFRegistrationHelper::activateTIP()) {
+		DEBUG_LOG(L"TSF enabled at startup: ensure registered and activate TIP");
+		if (!TSFRegistrationHelper::isTIPRegistered() && !TSFRegistrationHelper::registerTIP(false)) {
+			DEBUG_LOG(L"TSF startup register failed");
+		}
+		else if (!TSFRegistrationHelper::activateTIP()) {
 			DEBUG_LOG(L"TSF startup register or activate failed");
+		}
+		else if (vHideWindowsVietnameseIME) {
+			bool hidden = TSFRegistrationHelper::removeDefaultVietnameseIME();
+			DEBUG_LOG(L"TSF startup hide default Windows Vietnamese IME result=%d", hidden ? 1 : 0);
+			if (hidden) {
+				bool activated = TSFRegistrationHelper::activateTIP();
+				DEBUG_LOG(L"TSF startup reactivate after hide result=%d", activated ? 1 : 0);
+				// Re-assert Enable=0 after reactivation, which may reset CTF profile state.
+				TSFRegistrationHelper::suppressNonOpenKeyVietnameseTIPs();
+			}
 		}
 	}
 	else {
@@ -224,6 +238,7 @@ void AppDelegate::onDefaultConfig() {
 	APP_SET_DATA(vUseTSFInput, 0);
 	APP_SET_DATA(vForceUnloadTSFDLL, 0);
 	APP_SET_DATA(vTSFBackspaceCompatibility, 0);
+	APP_SET_DATA(vHideWindowsVietnameseIME, 0);
 	APP_SET_DATA(vFixChromiumBrowser, 0);
 
 	if (mainDialog) {
@@ -290,9 +305,15 @@ void AppDelegate::onToggleUseTSFInput() {
 		}
 	} else {
 		DEBUG_LOG(L"TSF enabling: register and activate TIP");
-		if (!TSFRegistrationHelper::registerTIP(false) || !TSFRegistrationHelper::activateTIP()) {
-			DEBUG_LOG(L"TSF register or activate failed; unregister rollback");
-			TSFRegistrationHelper::unregisterTIP(false);
+		bool registeredNow = false;
+		if (!TSFRegistrationHelper::isTIPRegistered()) {
+			registeredNow = TSFRegistrationHelper::registerTIP(false);
+		}
+		if ((!registeredNow && !TSFRegistrationHelper::isTIPRegistered()) || !TSFRegistrationHelper::activateTIP()) {
+			DEBUG_LOG(L"TSF register or activate failed");
+			if (registeredNow) {
+				TSFRegistrationHelper::unregisterTIP(false);
+			}
 			MessageBox(NULL,
 				_T("Cannot install or activate OpenKey IME in Windows."),
 				_T("OpenKey IME"),
@@ -304,6 +325,16 @@ void AppDelegate::onToggleUseTSFInput() {
 			return;
 		}
 		APP_SET_DATA(vUseTSFInput, 1);
+		if (vHideWindowsVietnameseIME) {
+			bool hidden = TSFRegistrationHelper::removeDefaultVietnameseIME();
+			DEBUG_LOG(L"TSF enable hide default Windows Vietnamese IME result=%d", hidden ? 1 : 0);
+			if (hidden) {
+				bool activated = TSFRegistrationHelper::activateTIP();
+				DEBUG_LOG(L"TSF enable reactivate after hide result=%d", activated ? 1 : 0);
+				// Re-assert Enable=0 after reactivation, which may reset CTF profile state.
+				TSFRegistrationHelper::suppressNonOpenKeyVietnameseTIPs();
+			}
+		}
 		DEBUG_LOG(L"TSF enabled");
 	}
 
@@ -414,9 +445,9 @@ void AppDelegate::shutdown() {
 	SystemTrayHelper::removeSystemTray();
 
 	DEBUG_LOG(L"OpenKey exit requested: vUseTSFInput=%d registered=%d", vUseTSFInput, TSFRegistrationHelper::isTIPRegistered());
-	if (vUseTSFInput || TSFRegistrationHelper::isTIPRegistered()) {
-		TSFRegistrationHelper::unregisterTIP(false);
-		DEBUG_LOG(L"TIP unregistered during exit");
+	if (vUseTSFInput) {
+		TSFRegistrationHelper::deactivateTIP();
+		DEBUG_LOG(L"TIP deactivated during exit");
 	}
 }
 

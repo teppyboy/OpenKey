@@ -13,6 +13,7 @@ redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #include "MainControlDialog.h"
 #include "AppDelegate.h"
+#include "TSFRegistrationHelper.h"
 #include <Shlobj.h>
 #include <Uxtheme.h>
 
@@ -199,6 +200,8 @@ void MainControlDialog::initDialog() {
 
     checkTSFBackspaceCompatibility = GetDlgItem(hTabPage3, IDC_CHECK_TSF_BACKSPACE_COMPATIBILITY);
 
+    checkHideWindowsVietnameseIME = GetDlgItem(hTabPage3, IDC_CHECK_HIDE_WINDOWS_VIETNAMESE_IME);
+
     checkUseClipboard = GetDlgItem(hTabPage3, IDC_CHECK_USE_CLIPBOARD);
     createToolTip(checkUseClipboard, IDS_STRING_USE_CLIPBOARD);
 
@@ -375,6 +378,7 @@ void MainControlDialog::fillData() {
     SendMessage(checkUseTSFInput, BM_SETCHECK, vUseTSFInput ? 1 : 0, 0);
     SendMessage(checkForceUnloadTSFDLL, BM_SETCHECK, vForceUnloadTSFDLL ? 1 : 0, 0);
     SendMessage(checkTSFBackspaceCompatibility, BM_SETCHECK, vTSFBackspaceCompatibility ? 1 : 0, 0);
+    SendMessage(checkHideWindowsVietnameseIME, BM_SETCHECK, vHideWindowsVietnameseIME ? 1 : 0, 0);
 
     EnableWindow(checkRestoreIfWrongSpelling, vCheckSpelling);
     EnableWindow(checkAllowZWJF, vCheckSpelling);
@@ -582,6 +586,21 @@ void MainControlDialog::onCheckboxClicked(const HWND& hWnd) {
     else if (hWnd == checkTSFBackspaceCompatibility) {
         val = (int)SendMessage(hWnd, BM_GETCHECK, 0, 0);
         APP_SET_DATA(vTSFBackspaceCompatibility, val ? 1 : 0);
+    }
+    else if (hWnd == checkHideWindowsVietnameseIME) {
+        val = (int)SendMessage(hWnd, BM_GETCHECK, 0, 0);
+        APP_SET_DATA(vHideWindowsVietnameseIME, val ? 1 : 0);
+        DEBUG_LOG(L"TSF hide default Windows Vietnamese IME setting=%d tsf=%d", vHideWindowsVietnameseIME, vUseTSFInput);
+        if (vHideWindowsVietnameseIME && vUseTSFInput) {
+            bool hidden = TSFRegistrationHelper::removeDefaultVietnameseIME();
+            DEBUG_LOG(L"TSF settings hide default Windows Vietnamese IME result=%d", hidden ? 1 : 0);
+            if (!hidden) {
+                MessageBox(NULL,
+                    _T("Cannot hide the default Windows Vietnamese IME."),
+                    _T("OpenKey IME"),
+                    MB_OK | MB_ICONERROR);
+            }
+        }
     }
     SystemTrayHelper::updateData();
 }

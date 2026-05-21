@@ -252,13 +252,15 @@ BEGIN
     CONTROL         "Khởi động cùng Windows",IDC_CHECK_RUN_WITH_WINDOWS,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,67,119,10
     PUSHBUTTON      "Kiểm tra bản mới...",IDC_BUTTON_CHECK_UPDATE,151,67,75,14
-    GROUPBOX        "Windows IME",IDC_STATIC,7,95,283,62
+    GROUPBOX        "Windows IME",IDC_STATIC,7,95,283,77
     CONTROL         "Tích hợp vào IME của Windows (10+)",IDC_CHECK_USE_TSF_INPUT,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,110,130,10
     CONTROL         "Buộc unload DLL khi thoát",IDC_CHECK_FORCE_UNLOAD_TSF_DLL,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,125,131,10
     CONTROL         "Tương thích Backspace",IDC_CHECK_TSF_BACKSPACE_COMPATIBILITY,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,140,139,10
+    CONTROL         "Ẩn bộ gõ Vietnamese mặc định",IDC_CHECK_HIDE_WINDOWS_VIETNAMESE_IME,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,155,145,10
 END
 
 IDD_DIALOG_OLD DIALOGEX 0, 0, 316, 268

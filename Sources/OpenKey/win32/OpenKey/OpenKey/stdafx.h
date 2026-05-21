@@ -92,3 +92,4 @@ extern int vFixChromiumBrowser;
 extern int vUseTSFInput;
 extern int vForceUnloadTSFDLL;
 extern int vTSFBackspaceCompatibility;
+extern int vHideWindowsVietnameseIME;
