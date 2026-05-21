@@ -242,6 +242,11 @@ namespace TSFRegistrationHelper {
 		if (registeredPath.empty())
 			registeredPath = getTIPDllPath();
 		bool unregistered = callRegistrationExport("DllUnregisterServer", registeredPath);
+		// TSF deactivation is dispatched asynchronously to host processes via their message
+		// loops. Wait before force-unloading so those threads can process the deactivation
+		// and release TIP COM objects. Without this delay, FreeLibrary fires while vtables
+		// still point into the DLL, crashing the host.
+		Sleep(1500);
 		forceUnloadTIPFromAllProcesses();
 		return unregistered;
 	}
