@@ -13,9 +13,12 @@ redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #include "TSFRegistrationHelper.h"
 #include <msctf.h>
+#include <tlhelp32.h>
+#include <psapi.h>
 
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "uuid.lib")
+#pragma comment(lib, "psapi.lib")
 
 namespace {
 	// Keep in sync with CLSID_OpenKeyTIP in OpenKeyTIP/globals.h
@@ -26,7 +29,6 @@ namespace {
 	{ 0x8bcb2f64, 0x9491, 0x4b57, { 0x86, 0x6a, 0xe2, 0xf3, 0x9d, 0xbb, 0x06, 0x68 } };
 	const LANGID TIP_LANGID = 0x042A;
 	typedef HRESULT(STDAPICALLTYPE* DllRegistrationProc)();
-
 	bool fileExists(const std::wstring& path) {
 		DWORD attrs = GetFileAttributesW(path.c_str());
 		return attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
@@ -74,8 +76,42 @@ namespace {
 		return path.substr(0, slash + 1);
 	}
 
-	bool callRegistrationExport(const char* exportName) {
-		std::wstring dllPath = TSFRegistrationHelper::getTIPDllPath();
+	std::wstring readRegisteredTIPDllPath() {
+		std::wstring keyPath = L"Software\\Classes\\CLSID\\";
+		keyPath += TIP_CLSID;
+		keyPath += L"\\InProcServer32";
+
+		wchar_t value[32768] = {};
+		DWORD type = REG_SZ;
+		DWORD size = sizeof(value);
+		LSTATUS status = RegGetValueW(HKEY_CURRENT_USER,
+			keyPath.c_str(),
+			NULL,
+			RRF_RT_REG_SZ,
+			&type,
+			value,
+			&size);
+		if (status != ERROR_SUCCESS || type != REG_SZ || size == 0 || (size % sizeof(wchar_t)) != 0)
+			return L"";
+
+		DWORD charCount = size / sizeof(wchar_t);
+		if (charCount == 0 || charCount > ARRAYSIZE(value))
+			return L"";
+
+		bool hasTerminator = value[charCount - 1] == L'\0';
+		DWORD contentCount = hasTerminator ? charCount - 1 : charCount;
+		if (contentCount == 0 || contentCount >= ARRAYSIZE(value))
+			return L"";
+
+		for (DWORD i = 0; i < contentCount; ++i) {
+			if (value[i] == L'\0')
+				return L"";
+		}
+		value[contentCount] = L'\0';
+		return value;
+	}
+
+	bool callRegistrationExport(const char* exportName, const std::wstring& dllPath) {
 		DEBUG_LOG(L"TSF callRegistrationExport export=%S path=%s", exportName, dllPath.c_str());
 		if (!isAbsolutePath(dllPath) || !fileExists(dllPath))
 		{
@@ -126,57 +162,22 @@ namespace TSFRegistrationHelper {
 	}
 
 	bool isTIPRegistered() {
-		std::wstring keyPath = L"Software\\Classes\\CLSID\\";
-		keyPath += TIP_CLSID;
-		keyPath += L"\\InProcServer32";
-
-		HKEY key = NULL;
-		if (RegOpenKeyExW(HKEY_CURRENT_USER, keyPath.c_str(), 0, KEY_READ, &key) != ERROR_SUCCESS) {
+		std::wstring value = readRegisteredTIPDllPath();
+		if (value.empty()) {
 			DEBUG_LOG(L"TSF isTIPRegistered: registry key missing");
 			return false;
 		}
 
-		wchar_t value[32768] = {};
-		DWORD type = REG_SZ;
-		DWORD size = sizeof(value);
-		LSTATUS status = RegQueryValueExW(key, NULL, NULL, &type, (LPBYTE)value, &size);
-		RegCloseKey(key);
-
-		if (status != ERROR_SUCCESS || type != REG_SZ || size == 0 || (size % sizeof(wchar_t)) != 0) {
-			DEBUG_LOG(L"TSF isTIPRegistered: invalid registry value status=%ld type=%lu size=%lu", status, type, size);
-			return false;
-		}
-
-		DWORD charCount = size / sizeof(wchar_t);
-		if (charCount == 0 || charCount > ARRAYSIZE(value)) {
-			DEBUG_LOG(L"TSF isTIPRegistered: invalid char count=%lu", charCount);
-			return false;
-		}
-
-		bool hasTerminator = value[charCount - 1] == L'\0';
-		DWORD contentCount = hasTerminator ? charCount - 1 : charCount;
-		if (contentCount == 0 || contentCount >= ARRAYSIZE(value)) {
-			DEBUG_LOG(L"TSF isTIPRegistered: invalid content count=%lu", contentCount);
-			return false;
-		}
-		for (DWORD i = 0; i < contentCount; ++i) {
-			if (value[i] == L'\0') {
-				DEBUG_LOG(L"TSF isTIPRegistered: embedded NUL in registry path");
-				return false;
-			}
-		}
-		value[contentCount] = L'\0';
-
 		std::wstring expectedPath = getTIPDllPath();
 		bool registered = !expectedPath.empty() && fileExists(value) && samePath(value, expectedPath);
-		DEBUG_LOG(L"TSF isTIPRegistered: registered=%d registryPath=%s expectedPath=%s", registered ? 1 : 0, value, expectedPath.c_str());
+		DEBUG_LOG(L"TSF isTIPRegistered: registered=%d registryPath=%s expectedPath=%s", registered ? 1 : 0, value.c_str(), expectedPath.c_str());
 		return registered;
 	}
 
 	bool registerTIP(bool elevated) {
 		UNREFERENCED_PARAMETER(elevated);
 		DEBUG_LOG(L"TSF registerTIP elevated=%d", elevated ? 1 : 0);
-		return callRegistrationExport("DllRegisterServer");
+		return callRegistrationExport("DllRegisterServer", getTIPDllPath());
 	}
 
 	bool deactivateTIP() {
@@ -201,9 +202,15 @@ namespace TSFRegistrationHelper {
 					TIP_CLSID_VALUE,
 					TIP_PROFILE_GUID,
 					NULL,
+					TF_IPPMF_FORSESSION);
+				HRESULT hrDeactivateDisable = profileMgr->DeactivateProfile(TF_PROFILETYPE_INPUTPROCESSOR,
+					TIP_LANGID,
+					TIP_CLSID_VALUE,
+					TIP_PROFILE_GUID,
+					NULL,
 					TF_IPPMF_FORSESSION | TF_IPPMF_DISABLEPROFILE);
-				DEBUG_LOG(L"TSF deactivateTIP DeactivateProfile hr=0x%08X", (unsigned int)hrDeactivate);
-				success = SUCCEEDED(hrDeactivate);
+				DEBUG_LOG(L"TSF deactivateTIP DeactivateProfile hr=0x%08X disable=0x%08X", (unsigned int)hrDeactivate, (unsigned int)hrDeactivateDisable);
+				success = SUCCEEDED(hrDeactivate) || SUCCEEDED(hrDeactivateDisable);
 				profileMgr->Release();
 			}
 			else {
@@ -231,7 +238,95 @@ namespace TSFRegistrationHelper {
 		DEBUG_LOG(L"TSF unregisterTIP elevated=%d", elevated ? 1 : 0);
 		bool deactivated = deactivateTIP();
 		DEBUG_LOG(L"TSF unregisterTIP deactivate result=%d", deactivated ? 1 : 0);
-		return callRegistrationExport("DllUnregisterServer");
+		std::wstring registeredPath = readRegisteredTIPDllPath();
+		if (registeredPath.empty())
+			registeredPath = getTIPDllPath();
+		bool unregistered = callRegistrationExport("DllUnregisterServer", registeredPath);
+		forceUnloadTIPFromAllProcesses();
+		return unregistered;
+	}
+
+	bool forceUnloadTIPFromAllProcesses() {
+		// WARNING: FreeLibrary injected into a process while COM/TSF objects from the DLL are
+		// still alive can crash that process. Call deactivateTIP() first and allow some time
+		// for TSF to release TIP objects before calling this.
+		std::wstring tipPath = getTIPDllPath();
+		if (tipPath.empty()) return false;
+
+		size_t slash = tipPath.rfind(L'\\');
+		std::wstring tipFileName = (slash != std::wstring::npos) ? tipPath.substr(slash + 1) : tipPath;
+		if (tipFileName.empty()) return false;
+
+		DEBUG_LOG(L"TSF forceUnloadTIPFromAllProcesses: dll=%s", tipFileName.c_str());
+
+		DWORD currentPid = GetCurrentProcessId();
+
+		HMODULE hKernel32 = GetModuleHandleW(L"kernel32.dll");
+		LPTHREAD_START_ROUTINE pFreeLibrary = hKernel32
+			? (LPTHREAD_START_ROUTINE)GetProcAddress(hKernel32, "FreeLibrary")
+			: NULL;
+		if (!pFreeLibrary) {
+			DEBUG_LOG(L"TSF forceUnloadTIPFromAllProcesses: FreeLibrary not found");
+			return false;
+		}
+
+		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		if (hSnapshot == INVALID_HANDLE_VALUE) {
+			DEBUG_LOG(L"TSF forceUnloadTIPFromAllProcesses: snapshot failed err=%lu", GetLastError());
+			return false;
+		}
+
+		bool anySuccess = false;
+		PROCESSENTRY32W pe = {};
+		pe.dwSize = sizeof(pe);
+		if (Process32FirstW(hSnapshot, &pe)) {
+			do {
+				DWORD pid = pe.th32ProcessID;
+				if (pid == currentPid || pid == 0 || pid == 4) continue;
+
+				HANDLE hProcess = OpenProcess(
+					PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_QUERY_INFORMATION,
+					FALSE, pid);
+				if (!hProcess) continue;
+
+				HMODULE hMods[1024];
+				DWORD cbNeeded = 0;
+				HMODULE hTipMod = NULL;
+				if (EnumProcessModulesEx(hProcess, hMods, sizeof(hMods), &cbNeeded, LIST_MODULES_ALL)) {
+					DWORD count = cbNeeded / sizeof(HMODULE);
+					for (DWORD i = 0; i < count && !hTipMod; i++) {
+						wchar_t modName[MAX_PATH] = {};
+						if (GetModuleFileNameExW(hProcess, hMods[i], modName, MAX_PATH)) {
+							std::wstring modPath = modName;
+							size_t s = modPath.rfind(L'\\');
+							std::wstring modFileName = (s != std::wstring::npos) ? modPath.substr(s + 1) : modPath;
+							if (_wcsicmp(modFileName.c_str(), tipFileName.c_str()) == 0) {
+								hTipMod = hMods[i];
+							}
+						}
+					}
+				}
+
+				if (hTipMod) {
+					DEBUG_LOG(L"TSF forceUnloadTIPFromAllProcesses: found in pid=%lu, injecting FreeLibrary", pid);
+					HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, pFreeLibrary, hTipMod, 0, NULL);
+					if (hThread) {
+						WaitForSingleObject(hThread, 5000);
+						CloseHandle(hThread);
+						anySuccess = true;
+						DEBUG_LOG(L"TSF forceUnloadTIPFromAllProcesses: unloaded from pid=%lu", pid);
+					} else {
+						DEBUG_LOG(L"TSF forceUnloadTIPFromAllProcesses: CreateRemoteThread failed pid=%lu err=%lu", pid, GetLastError());
+					}
+				}
+
+				CloseHandle(hProcess);
+			} while (Process32NextW(hSnapshot, &pe));
+		}
+
+		CloseHandle(hSnapshot);
+		DEBUG_LOG(L"TSF forceUnloadTIPFromAllProcesses: done anySuccess=%d", anySuccess ? 1 : 0);
+		return anySuccess;
 	}
 
 	bool activateTIP() {
@@ -254,12 +349,12 @@ namespace TSFRegistrationHelper {
 			ITfInputProcessorProfileMgr* profileMgr = NULL;
 			HRESULT hrMgr = profiles->QueryInterface(IID_ITfInputProcessorProfileMgr, (void**)&profileMgr);
 			if (SUCCEEDED(hrMgr) && profileMgr) {
-			hr = profileMgr->ActivateProfile(TF_PROFILETYPE_INPUTPROCESSOR,
-				TIP_LANGID,
-				TIP_CLSID_VALUE,
-				TIP_PROFILE_GUID,
-				NULL,
-				TF_IPPMF_FORSESSION | TF_IPPMF_DONTCARECURRENTINPUTLANGUAGE | TF_IPPMF_ENABLEPROFILE);
+				hr = profileMgr->ActivateProfile(TF_PROFILETYPE_INPUTPROCESSOR,
+					TIP_LANGID,
+					TIP_CLSID_VALUE,
+					TIP_PROFILE_GUID,
+					NULL,
+					TF_IPPMF_FORSESSION | TF_IPPMF_DONTCARECURRENTINPUTLANGUAGE | TF_IPPMF_ENABLEPROFILE);
 				DEBUG_LOG(L"TSF activateTIP ActivateProfile hr=0x%08X", (unsigned int)hr);
 				profileMgr->Release();
 			}

@@ -78,6 +78,21 @@ static bool IsControlModified()
         (GetKeyState(VK_RWIN) < 0);
 }
 
+static bool IsModifierKey(WPARAM wParam)
+{
+    return wParam == VK_CONTROL ||
+        wParam == VK_LCONTROL ||
+        wParam == VK_RCONTROL ||
+        wParam == VK_SHIFT ||
+        wParam == VK_LSHIFT ||
+        wParam == VK_RSHIFT ||
+        wParam == VK_MENU ||
+        wParam == VK_LMENU ||
+        wParam == VK_RMENU ||
+        wParam == VK_LWIN ||
+        wParam == VK_RWIN;
+}
+
 static Uint8 GetCapsStatus()
 {
     const bool shift = GetKeyState(VK_SHIFT) < 0;
@@ -187,6 +202,15 @@ static bool KeyCodeToLiteralText(Uint16 keyCode, std::wstring *text)
 
     text->push_back((wchar_t)ch);
     return true;
+}
+
+static void AppendRestoreLiteral(Uint16 keyCode, std::wstring *text)
+{
+    std::wstring literal;
+    if (KeyCodeToLiteralText(keyCode, &literal))
+    {
+        text->append(literal);
+    }
 }
 
 class ProcessingKeyGuard
@@ -530,8 +554,14 @@ STDAPI COpenKeyTIP::OnTestKeyDown(ITfContext *, WPARAM wParam, LPARAM, BOOL *pfE
     }
 
     *pfEaten = FALSE;
-    if (_fDisabledForApp || !IsRuntimeEnabled() || IsFallbackInputMessage() || IsControlModified())
+    if (_fDisabledForApp || !IsRuntimeEnabled() || IsFallbackInputMessage())
     {
+        return S_OK;
+    }
+
+    if (IsControlModified())
+    {
+        *pfEaten = !IsModifierKey(wParam) ? TRUE : FALSE;
         return S_OK;
     }
 
@@ -559,8 +589,17 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
     }
 
     *pfEaten = FALSE;
-    if (pic == NULL || _fDisabledForApp || !IsRuntimeEnabled() || _fProcessingKey || IsFallbackInputMessage() || IsControlModified())
+    if (pic == NULL || _fDisabledForApp || !IsRuntimeEnabled() || _fProcessingKey || IsFallbackInputMessage())
     {
+        return S_OK;
+    }
+
+    if (IsControlModified())
+    {
+        if (!IsModifierKey(wParam))
+        {
+            ResetSessionState(pic);
+        }
         return S_OK;
     }
 
@@ -583,6 +622,24 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
         {
         case vEngineEditOpNone:
         {
+            if (keyCode == KEY_DELETE)
+            {
+                std::wstring text;
+                if (isTransitory)
+                {
+                    hr = FallbackSendOutput(text, 1);
+                }
+                else
+                {
+                    hr = RequestEditSession(pic, CEditSession::OperationReplaceLeftText, text, 1);
+                }
+                if (SUCCEEDED(hr))
+                {
+                    *pfEaten = TRUE;
+                }
+                break;
+            }
+
             std::wstring text;
             if (!KeyCodeToLiteralText(keyCode, &text))
             {
@@ -607,6 +664,28 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
             break;
         }
         case vEngineEditOpReplaceText:
+        {
+            std::wstring text;
+            if (!CodePointsToString(op.text, &text))
+            {
+                hr = E_FAIL;
+                break;
+            }
+            if (isTransitory)
+            {
+                hr = FallbackSendOutput(text, op.backspaceCount);
+                *pfEaten = TRUE;
+            }
+            else
+            {
+                hr = RequestEditSession(pic, CEditSession::OperationReplaceLeftText, text, op.backspaceCount);
+                if (SUCCEEDED(hr))
+                {
+                    *pfEaten = TRUE;
+                }
+            }
+            break;
+        }
         case vEngineEditOpRestoreText:
         {
             std::wstring text;
@@ -615,6 +694,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
                 hr = E_FAIL;
                 break;
             }
+            AppendRestoreLiteral(keyCode, &text);
             if (isTransitory)
             {
                 hr = FallbackSendOutput(text, op.backspaceCount);
@@ -657,6 +737,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
                 hr = E_FAIL;
                 break;
             }
+            AppendRestoreLiteral(keyCode, &text);
             if (isTransitory)
             {
                 hr = FallbackSendOutput(text, op.backspaceCount);
@@ -855,4 +936,13 @@ bool COpenKeyTIP::IsRuntimeEnabled()
         _composition->ClearComposition();
     }
     return false;
+}
+
+void COpenKeyTIP::ResetSessionState(ITfContext *context)
+{
+    _engine.Reset();
+    if (context != NULL && _composition != NULL && _composition->HasComposition())
+    {
+        RequestEditSession(context, CEditSession::OperationClearComposition, std::wstring());
+    }
 }

@@ -121,6 +121,12 @@ namespace
                 CLSID_OpenKeyTIP,
                 GUID_OpenKeyProfile,
                 NULL,
+                TF_IPPMF_FORSESSION);
+            profileMgr->DeactivateProfile(TF_PROFILETYPE_INPUTPROCESSOR,
+                LANGID_OpenKeyVietnamese,
+                CLSID_OpenKeyTIP,
+                GUID_OpenKeyProfile,
+                NULL,
                 TF_IPPMF_FORSESSION | TF_IPPMF_DISABLEPROFILE);
             profileMgr->Release();
         }

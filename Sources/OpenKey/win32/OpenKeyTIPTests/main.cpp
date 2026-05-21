@@ -128,6 +128,38 @@ static bool ApplyKey(vKeyHookState* state, Uint16 keyCode, std::wstring* text)
     return AppendEditText(op.text, text);
 }
 
+static bool ApplyLegacyKey(vKeyHookState* state, Uint16 keyCode, std::wstring* text)
+{
+    vKeyHandleEvent(Keyboard, KeyDown, keyCode, 0, false);
+    vEngineEditOp op = vBuildEditOpFromHookState(state);
+    if (op.type == vEngineEditOpNone) {
+        Uint16 plain = keyCodeToCharacter(keyCode);
+        if (plain != 0) {
+            text->push_back((wchar_t)plain);
+        }
+        return true;
+    }
+    if (op.type != vEngineEditOpReplaceText &&
+        op.type != vEngineEditOpRestoreText &&
+        op.type != vEngineEditOpRestoreAndStartNewSession) {
+        return true;
+    }
+    if (op.backspaceCount > text->size()) {
+        return false;
+    }
+    text->erase(text->size() - op.backspaceCount);
+    if (!AppendEditText(op.text, text)) {
+        return false;
+    }
+    if (op.type == vEngineEditOpRestoreText || op.type == vEngineEditOpRestoreAndStartNewSession) {
+        Uint16 plain = keyCodeToCharacter(keyCode);
+        if (plain != 0) {
+            text->push_back((wchar_t)plain);
+        }
+    }
+    return true;
+}
+
 static bool TestTelexDdoasOrder()
 {
     vKeyHookState* state = static_cast<vKeyHookState*>(vKeyInit());
@@ -180,6 +212,30 @@ static bool TestWindowsOemPunctuationKeys()
     return true;
 }
 
+static bool TestTelexRepeatedToneRestoresLiteral()
+{
+    vKeyHookState* state = static_cast<vKeyHookState*>(vKeyInit());
+    if (state == nullptr) {
+        return Fail("vKeyInit returned null for repeated tone test");
+    }
+    startNewSession();
+
+    std::wstring text;
+    if (!ApplyLegacyKey(state, KEY_T, &text) ||
+        !ApplyLegacyKey(state, KEY_H, &text) ||
+        !ApplyLegacyKey(state, KEY_I, &text) ||
+        !ApplyLegacyKey(state, KEY_S, &text) ||
+        !ApplyLegacyKey(state, KEY_S, &text)) {
+        return Fail("repeated tone edit sequence failed");
+    }
+
+    if (text != L"this") {
+        return Fail("repeated tone did not restore literal key");
+    }
+
+    return true;
+}
+
 int main()
 {
     if (!TestNullHookState()) {
@@ -195,6 +251,9 @@ int main()
         return 1;
     }
     if (!TestWindowsOemPunctuationKeys()) {
+        return 1;
+    }
+    if (!TestTelexRepeatedToneRestoresLiteral()) {
         return 1;
     }
 

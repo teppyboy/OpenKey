@@ -20,5 +20,6 @@ namespace TSFRegistrationHelper {
 	bool deactivateTIP();
 	bool unregisterTIP(bool elevated);
 	bool activateTIP();
+	bool forceUnloadTIPFromAllProcesses();
 	std::wstring getTIPDllPath();
 }
