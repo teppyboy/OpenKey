@@ -5,4 +5,13 @@
 
 bool IsTransitoryContext(ITfContext *context);
 bool IsFallbackInputMessage();
-HRESULT FallbackSendOutput(const std::wstring &text, BYTE backspaceCount);
+
+enum FallbackBackspaceMode
+{
+    FallbackBackspaceVirtualKey,
+    FallbackBackspaceUnicode
+};
+
+HRESULT FallbackSendOutput(const std::wstring &text,
+    BYTE backspaceCount,
+    FallbackBackspaceMode backspaceMode = FallbackBackspaceVirtualKey);

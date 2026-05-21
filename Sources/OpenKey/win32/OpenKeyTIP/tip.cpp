@@ -70,6 +70,28 @@ static std::string GetForegroundExecutableName()
     return exe;
 }
 
+static bool IsElectronOrChromiumApp(const std::string &exe)
+{
+    return lstrcmpiA(exe.c_str(), "Discord.exe") == 0 ||
+        lstrcmpiA(exe.c_str(), "DiscordPTB.exe") == 0 ||
+        lstrcmpiA(exe.c_str(), "DiscordCanary.exe") == 0 ||
+        lstrcmpiA(exe.c_str(), "Code.exe") == 0 ||
+        lstrcmpiA(exe.c_str(), "Code - Insiders.exe") == 0 ||
+        lstrcmpiA(exe.c_str(), "Cursor.exe") == 0 ||
+        lstrcmpiA(exe.c_str(), "Slack.exe") == 0 ||
+        lstrcmpiA(exe.c_str(), "Teams.exe") == 0 ||
+        lstrcmpiA(exe.c_str(), "Spotify.exe") == 0 ||
+        lstrcmpiA(exe.c_str(), "chrome.exe") == 0 ||
+        lstrcmpiA(exe.c_str(), "msedge.exe") == 0 ||
+        lstrcmpiA(exe.c_str(), "electron.exe") == 0;
+}
+
+static FallbackBackspaceMode GetFallbackBackspaceMode()
+{
+    return IsElectronOrChromiumApp(GetForegroundExecutableName()) ?
+        FallbackBackspaceVirtualKey : FallbackBackspaceUnicode;
+}
+
 static bool IsControlModified()
 {
     return (GetKeyState(VK_CONTROL) < 0) ||
@@ -91,6 +113,23 @@ static bool IsModifierKey(WPARAM wParam)
         wParam == VK_RMENU ||
         wParam == VK_LWIN ||
         wParam == VK_RWIN;
+}
+
+static bool IsPassThroughCommandKey(WPARAM wParam)
+{
+    return wParam == VK_RETURN ||
+        wParam == VK_TAB ||
+        wParam == VK_ESCAPE ||
+        wParam == VK_LEFT ||
+        wParam == VK_RIGHT ||
+        wParam == VK_UP ||
+        wParam == VK_DOWN ||
+        wParam == VK_INSERT ||
+        wParam == VK_HOME ||
+        wParam == VK_END ||
+        wParam == VK_DELETE ||
+        wParam == VK_PRIOR ||
+        wParam == VK_NEXT;
 }
 
 static Uint8 GetCapsStatus()
@@ -561,7 +600,20 @@ STDAPI COpenKeyTIP::OnTestKeyDown(ITfContext *, WPARAM wParam, LPARAM, BOOL *pfE
 
     if (IsControlModified())
     {
-        *pfEaten = !IsModifierKey(wParam) ? TRUE : FALSE;
+        // Don't claim control-modified keys so shortcuts reach the app.
+        // Reset engine state as a side effect so the next key starts fresh.
+        if (!IsModifierKey(wParam))
+        {
+            _engine.Reset();
+        }
+        *pfEaten = FALSE;
+        return S_OK;
+    }
+
+    if (IsPassThroughCommandKey(wParam))
+    {
+        _engine.Reset();
+        *pfEaten = FALSE;
         return S_OK;
     }
 
@@ -603,6 +655,12 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
         return S_OK;
     }
 
+    if (IsPassThroughCommandKey(wParam))
+    {
+        ResetSessionState(pic);
+        return S_OK;
+    }
+
     Uint16 keyCode = 0;
     if (!TranslateKey(wParam, &keyCode))
     {
@@ -617,6 +675,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
         vKeyHookState *state = _engine.ProcessKey(keyCode, GetCapsStatus(), false);
         vEngineEditOp op = vBuildEditOpFromHookState(state);
         bool isTransitory = IsTransitoryContext(pic);
+        FallbackBackspaceMode fallbackBackspaceMode = GetFallbackBackspaceMode();
 
         switch (op.type)
         {
@@ -627,7 +686,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
                 std::wstring text;
                 if (isTransitory)
                 {
-                    hr = FallbackSendOutput(text, 1);
+                    hr = FallbackSendOutput(text, 1, fallbackBackspaceMode);
                 }
                 else
                 {
@@ -647,7 +706,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
             }
             if (isTransitory)
             {
-                hr = FallbackSendOutput(text, 0);
+                hr = FallbackSendOutput(text, 0, fallbackBackspaceMode);
                 if (SUCCEEDED(hr))
                 {
                     *pfEaten = TRUE;
@@ -673,7 +732,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
             }
             if (isTransitory)
             {
-                hr = FallbackSendOutput(text, op.backspaceCount);
+                hr = FallbackSendOutput(text, op.backspaceCount, fallbackBackspaceMode);
                 *pfEaten = TRUE;
             }
             else
@@ -682,6 +741,14 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
                 if (SUCCEEDED(hr))
                 {
                     *pfEaten = TRUE;
+                }
+                else
+                {
+                    // TSF edit session failed (e.g. doc out-of-sync, no sync session grant).
+                    // Inject via fallback so the engine state stays consistent.
+                    hr = FallbackSendOutput(text, op.backspaceCount, fallbackBackspaceMode);
+                    if (SUCCEEDED(hr)) { *pfEaten = TRUE; }
+                    else { _engine.Reset(); }
                 }
             }
             break;
@@ -697,7 +764,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
             AppendRestoreLiteral(keyCode, &text);
             if (isTransitory)
             {
-                hr = FallbackSendOutput(text, op.backspaceCount);
+                hr = FallbackSendOutput(text, op.backspaceCount, fallbackBackspaceMode);
                 *pfEaten = TRUE;
             }
             else
@@ -706,6 +773,12 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
                 if (SUCCEEDED(hr))
                 {
                     *pfEaten = TRUE;
+                }
+                else
+                {
+                    hr = FallbackSendOutput(text, op.backspaceCount, fallbackBackspaceMode);
+                    if (SUCCEEDED(hr)) { *pfEaten = TRUE; }
+                    else { _engine.Reset(); }
                 }
             }
             break;
@@ -720,7 +793,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
             }
             if (isTransitory)
             {
-                hr = FallbackSendOutput(text, op.backspaceCount);
+                hr = FallbackSendOutput(text, op.backspaceCount, fallbackBackspaceMode);
                 *pfEaten = TRUE;
             }
             else
@@ -740,7 +813,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
             AppendRestoreLiteral(keyCode, &text);
             if (isTransitory)
             {
-                hr = FallbackSendOutput(text, op.backspaceCount);
+                hr = FallbackSendOutput(text, op.backspaceCount, fallbackBackspaceMode);
                 *pfEaten = TRUE;
             }
             else
@@ -749,6 +822,12 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
                 if (SUCCEEDED(hr))
                 {
                     *pfEaten = TRUE;
+                }
+                else
+                {
+                    hr = FallbackSendOutput(text, op.backspaceCount, fallbackBackspaceMode);
+                    if (SUCCEEDED(hr)) { *pfEaten = TRUE; }
+                    else { _engine.Reset(); }
                 }
             }
             if (SUCCEEDED(hr))

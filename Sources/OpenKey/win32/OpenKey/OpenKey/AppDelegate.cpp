@@ -42,6 +42,7 @@ int vOtherLanguage = 1;
 int vRememberCode = 1;
 int vTempOffOpenKey = 0;
 int vUseTSFInput = 0;
+int vForceUnloadTSFDLL = 0;
 
 int vUseGrayIcon = 0;
 int vShowOnStartUp = 0;
@@ -214,6 +215,7 @@ void AppDelegate::onDefaultConfig() {
 	APP_SET_DATA(vOtherLanguage, 1);
 	APP_SET_DATA(vTempOffOpenKey, 0);
 	APP_SET_DATA(vUseTSFInput, 0);
+	APP_SET_DATA(vForceUnloadTSFDLL, 0);
 	APP_SET_DATA(vFixChromiumBrowser, 0);
 
 	if (mainDialog) {

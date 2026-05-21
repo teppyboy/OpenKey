@@ -44,6 +44,12 @@ static void PushKey(std::vector<INPUT> *inputs, WORD vk, WORD scan, DWORD flags)
     inputs->push_back(input);
 }
 
+static void PushUnicodeChar(std::vector<INPUT> *inputs, WORD ch)
+{
+    PushKey(inputs, 0, ch, KEYEVENTF_UNICODE);
+    PushKey(inputs, 0, ch, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP);
+}
+
 static HRESULT SendInputBatch(std::vector<INPUT> *inputs)
 {
     if (inputs->empty())
@@ -62,7 +68,7 @@ static HRESULT SendInputBatch(std::vector<INPUT> *inputs)
     return S_OK;
 }
 
-HRESULT FallbackSendOutput(const std::wstring &text, BYTE backspaceCount)
+HRESULT FallbackSendOutput(const std::wstring &text, BYTE backspaceCount, FallbackBackspaceMode backspaceMode)
 {
     try
     {
@@ -76,8 +82,17 @@ HRESULT FallbackSendOutput(const std::wstring &text, BYTE backspaceCount)
 
         for (BYTE i = 0; i < backspaceCount; ++i)
         {
-            PushKey(&inputs, VK_BACK, 0, 0);
-            PushKey(&inputs, VK_BACK, 0, KEYEVENTF_KEYUP);
+            if (backspaceMode == FallbackBackspaceUnicode)
+            {
+                // Some transitory hosts ignore synthetic VK_BACK but accept
+                // Unicode packets, including U+0008 backspace.
+                PushUnicodeChar(&inputs, VK_BACK);
+            }
+            else
+            {
+                PushKey(&inputs, VK_BACK, 0, 0);
+                PushKey(&inputs, VK_BACK, 0, KEYEVENTF_KEYUP);
+            }
             if (inputs.size() >= 64)
             {
                 HRESULT hr = SendInputBatch(&inputs);
@@ -90,9 +105,7 @@ HRESULT FallbackSendOutput(const std::wstring &text, BYTE backspaceCount)
 
         for (size_t i = 0; i < text.size(); ++i)
         {
-            WORD ch = (WORD)text[i];
-            PushKey(&inputs, 0, ch, KEYEVENTF_UNICODE);
-            PushKey(&inputs, 0, ch, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP);
+            PushUnicodeChar(&inputs, (WORD)text[i]);
             if (inputs.size() >= 64)
             {
                 HRESULT hr = SendInputBatch(&inputs);

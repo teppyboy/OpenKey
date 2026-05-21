@@ -1,10 +1,10 @@
 {
 	"latestVersion": {
-		"versionName": "2.0.3",
-		"versionCode": 47
+		"versionName": "2.1.0",
+		"versionCode": 49
 	},
 	"latestWinVersion": {
-		"versionName": "2.0.2",
-		"versionCode": 131074
+		"versionName": "2.1.0",
+		"versionCode": 131328
 	}
 }

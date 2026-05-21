@@ -138,6 +138,7 @@ namespace
         {
             SaveFirstFailure(IgnoreMissingRegistration(categoryMgr->UnregisterCategory(CLSID_OpenKeyTIP, GUID_TFCAT_TIP_KEYBOARD, CLSID_OpenKeyTIP)), firstFailure);
             SaveFirstFailure(IgnoreMissingRegistration(categoryMgr->UnregisterCategory(CLSID_OpenKeyTIP, GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, CLSID_OpenKeyTIP)), firstFailure);
+            SaveFirstFailure(IgnoreMissingRegistration(categoryMgr->UnregisterCategory(CLSID_OpenKeyTIP, GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT, CLSID_OpenKeyTIP)), firstFailure);
         }
 
 
@@ -229,6 +230,9 @@ STDAPI DllRegisterServer()
         SaveFirstFailure(hr, &firstFailure);
 
         hr = categoryMgr->RegisterCategory(CLSID_OpenKeyTIP, GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, CLSID_OpenKeyTIP);
+        SaveFirstFailure(hr, &firstFailure);
+
+        hr = categoryMgr->RegisterCategory(CLSID_OpenKeyTIP, GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT, CLSID_OpenKeyTIP);
         SaveFirstFailure(hr, &firstFailure);
     }
 

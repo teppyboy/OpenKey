@@ -129,6 +129,7 @@ void OpenKeyInit() {
 	APP_GET_DATA(vOtherLanguage, 1);
 	APP_GET_DATA(vTempOffOpenKey, 0);
 	APP_GET_DATA(vUseTSFInput, 0);
+	APP_GET_DATA(vForceUnloadTSFDLL, 0);
 	APP_GET_DATA(vFixChromiumBrowser, 0);
 
 	//init convert tool
@@ -144,10 +145,10 @@ void OpenKeyInit() {
 	if (convertToolHotKey == 0) {
 		convertToolHotKey = EMPTY_HOTKEY;
 	}
-	DEBUG_LOG(L"OpenKey config: lang=%d input=%d code=%d spell=%d modern=%d restore=%d macro=%d macroEng=%d smart=%d remember=%d tsf=%d gray=%d metro=%d chromium=%d switch=0x%08X convertHotkey=0x%08X",
+	DEBUG_LOG(L"OpenKey config: lang=%d input=%d code=%d spell=%d modern=%d restore=%d macro=%d macroEng=%d smart=%d remember=%d tsf=%d forceUnload=%d gray=%d metro=%d chromium=%d switch=0x%08X convertHotkey=0x%08X",
 		vLanguage, vInputType, vCodeTable, vCheckSpelling, vUseModernOrthography,
 		vRestoreIfWrongSpelling, vUseMacro, vUseMacroInEnglishMode, vUseSmartSwitchKey,
-		vRememberCode, vUseTSFInput, vUseGrayIcon, vSupportMetroApp, vFixChromiumBrowser,
+		vRememberCode, vUseTSFInput, vForceUnloadTSFDLL, vUseGrayIcon, vSupportMetroApp, vFixChromiumBrowser,
 		vSwitchKeyStatus, convertToolHotKey);
 
 	pData = (vKeyHookState*)vKeyInit();

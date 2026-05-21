@@ -110,7 +110,7 @@ END
 
 IDD_DIALOG_MAIN DIALOGEX 0, 0, 297, 261
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "OpenKey 1.4 - Bộ gõ Tiếng Việt"
+CAPTION "OpenKey 2.1 - Bộ gõ Tiếng Việt"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     PUSHBUTTON      "Cài đặt gốc",ID_BTN_DEFAULT,113,234,71,20
@@ -235,25 +235,27 @@ STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
 EXSTYLE WS_EX_TRANSPARENT
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    CONTROL         "Bật bảng này khi khởi động",IDC_CHECK_SHOW_ON_STARTUP,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,69,122,10
-    CONTROL         "Biểu tượng hiện đại",IDC_CHECK_MODERN_ICON,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,88,103,10
-    CONTROL         "Khởi động cùng Windows",IDC_CHECK_RUN_WITH_WINDOWS,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,108,119,10
-    CONTROL         "Chạy với quyền Admin",IDC_CHECK_RUN_AS_ADMIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,151,31,119,10
-    CONTROL         "Kiểm tra bản mới lúc khởi động",IDC_CHECK_CHECK_UPDATE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,151,70,119,10
-    PUSHBUTTON      "Kiểm tra bản mới...",IDC_BUTTON_CHECK_UPDATE,151,88,75,14
-    CONTROL         "Tạo biểu tượng trên Desktop",IDC_CHECK_CHECK_CREATE_SHORTCUT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,50,119,10
-    CONTROL         "Sửa lỗi trên Chromium (beta)",IDC_CHECK_FIX_CHROMIUM,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,151,12,119,10
-    CONTROL         "Dùng Clipboard để gửi phím",IDC_CHECK_USE_CLIPBOARD,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,151,50,119,10
     CONTROL         "Hỗ trợ ứng dụng Metro",IDC_CHECK_SUPPORT_METRO_APP,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,12,119,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,7,119,10
+    CONTROL         "Sửa lỗi trên Chromium (beta)",IDC_CHECK_FIX_CHROMIUM,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,151,7,119,10
     CONTROL         "Dùng OpenKey IME của Windows",IDC_CHECK_USE_TSF_INPUT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,31,130,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,22,130,10
+    CONTROL         "Chạy với quyền Admin",IDC_CHECK_RUN_AS_ADMIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,151,22,119,10
+    CONTROL         "Tạo biểu tượng trên Desktop",IDC_CHECK_CHECK_CREATE_SHORTCUT,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,37,119,10
+    CONTROL         "Dùng Clipboard để gửi phím",IDC_CHECK_USE_CLIPBOARD,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,151,37,119,10
+    CONTROL         "Bật bảng này khi khởi động",IDC_CHECK_SHOW_ON_STARTUP,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,52,122,10
+    CONTROL         "Kiểm tra bản mới lúc khởi động",IDC_CHECK_CHECK_UPDATE,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,151,52,119,10
+    CONTROL         "Biểu tượng hiện đại",IDC_CHECK_MODERN_ICON,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,67,103,10
+    CONTROL         "Buộc gỡ DLL TSF",IDC_CHECK_FORCE_UNLOAD_TSF_DLL,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,151,67,119,10
+    CONTROL         "Khởi động cùng Windows",IDC_CHECK_RUN_WITH_WINDOWS,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,82,119,10
+    PUSHBUTTON      "Kiểm tra bản mới...",IDC_BUTTON_CHECK_UPDATE,151,97,75,14
 END
 
 IDD_DIALOG_OLD DIALOGEX 0, 0, 316, 268
@@ -407,8 +409,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,0,5,0
- PRODUCTVERSION 2,0,5,0
+ FILEVERSION 2,1,0,0
+ PRODUCTVERSION 2,1,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -425,12 +427,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "The OpenKey Project"
             VALUE "FileDescription", "OpenKey - Bộ gõ Tiếng Việt nguồn mở"
-            VALUE "FileVersion", "2.0.5.0"
+            VALUE "FileVersion", "2.1.0.0"
             VALUE "InternalName", "OpenKey.exe"
             VALUE "LegalCopyright", "Copyright (C) 2019 - Mai Vũ Tuyên"
             VALUE "OriginalFilename", "OpenKey.exe"
             VALUE "ProductName", "OpenKey"
-            VALUE "ProductVersion", "2.0.5.0"
+            VALUE "ProductVersion", "2.1.0.0"
         END
     END
     BLOCK "VarFileInfo"
