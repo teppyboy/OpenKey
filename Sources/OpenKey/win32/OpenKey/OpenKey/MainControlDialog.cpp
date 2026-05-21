@@ -197,6 +197,8 @@ void MainControlDialog::initDialog() {
 
     checkForceUnloadTSFDLL = GetDlgItem(hTabPage3, IDC_CHECK_FORCE_UNLOAD_TSF_DLL);
 
+    checkTSFBackspaceCompatibility = GetDlgItem(hTabPage3, IDC_CHECK_TSF_BACKSPACE_COMPATIBILITY);
+
     checkUseClipboard = GetDlgItem(hTabPage3, IDC_CHECK_USE_CLIPBOARD);
     createToolTip(checkUseClipboard, IDS_STRING_USE_CLIPBOARD);
 
@@ -372,6 +374,7 @@ void MainControlDialog::fillData() {
     SendMessage(checkFixChromium, BM_SETCHECK, vFixChromiumBrowser ? 1 : 0, 0);
     SendMessage(checkUseTSFInput, BM_SETCHECK, vUseTSFInput ? 1 : 0, 0);
     SendMessage(checkForceUnloadTSFDLL, BM_SETCHECK, vForceUnloadTSFDLL ? 1 : 0, 0);
+    SendMessage(checkTSFBackspaceCompatibility, BM_SETCHECK, vTSFBackspaceCompatibility ? 1 : 0, 0);
 
     EnableWindow(checkRestoreIfWrongSpelling, vCheckSpelling);
     EnableWindow(checkAllowZWJF, vCheckSpelling);
@@ -575,6 +578,10 @@ void MainControlDialog::onCheckboxClicked(const HWND& hWnd) {
     else if (hWnd == checkForceUnloadTSFDLL) {
         val = (int)SendMessage(hWnd, BM_GETCHECK, 0, 0);
         APP_SET_DATA(vForceUnloadTSFDLL, val ? 1 : 0);
+    }
+    else if (hWnd == checkTSFBackspaceCompatibility) {
+        val = (int)SendMessage(hWnd, BM_GETCHECK, 0, 0);
+        APP_SET_DATA(vTSFBackspaceCompatibility, val ? 1 : 0);
     }
     SystemTrayHelper::updateData();
 }

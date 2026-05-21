@@ -236,6 +236,35 @@ static bool TestTelexRepeatedToneRestoresLiteral()
     return true;
 }
 
+static bool TestTelexMultiSyllableReplacement()
+{
+    vKeyHookState* state = static_cast<vKeyHookState*>(vKeyInit());
+    if (state == nullptr) {
+        return Fail("vKeyInit returned null for multi-syllable test");
+    }
+    startNewSession();
+
+    std::wstring text;
+    const Uint16 keys[] = {
+        KEY_N, KEY_G, KEY_U, KEY_Y, KEY_E, KEY_E, KEY_N, KEY_X,
+        KEY_SPACE,
+        KEY_T, KEY_H, KEY_E, KEY_E, KEY_S,
+        KEY_SPACE,
+        KEY_H, KEY_U, KEY_W, KEY_N, KEY_G
+    };
+    for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
+        if (!ApplyLegacyKey(state, keys[i], &text)) {
+            return Fail("multi-syllable edit sequence failed");
+        }
+    }
+
+    if (text != L"nguy\x1ec5n th\x1ebf h\x01b0ng") {
+        return Fail("multi-syllable replacement duplicated or missed text");
+    }
+
+    return true;
+}
+
 int main()
 {
     if (!TestNullHookState()) {
@@ -254,6 +283,9 @@ int main()
         return 1;
     }
     if (!TestTelexRepeatedToneRestoresLiteral()) {
+        return 1;
+    }
+    if (!TestTelexMultiSyllableReplacement()) {
         return 1;
     }
 

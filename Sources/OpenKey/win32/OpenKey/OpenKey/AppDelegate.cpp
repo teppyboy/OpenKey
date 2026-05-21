@@ -43,6 +43,7 @@ int vRememberCode = 1;
 int vTempOffOpenKey = 0;
 int vUseTSFInput = 0;
 int vForceUnloadTSFDLL = 0;
+int vTSFBackspaceCompatibility = 0;
 
 int vUseGrayIcon = 0;
 int vShowOnStartUp = 0;
@@ -115,7 +116,13 @@ int AppDelegate::run(HINSTANCE hInstance) {
 	//init OpenKey Engine
 	OpenKeyManager::initEngine();
 	DEBUG_LOG(L"OpenKey engine initialized");
-	if (!vUseTSFInput) {
+	if (vUseTSFInput) {
+		DEBUG_LOG(L"TSF enabled at startup: register and activate TIP");
+		if (!TSFRegistrationHelper::registerTIP(false) || !TSFRegistrationHelper::activateTIP()) {
+			DEBUG_LOG(L"TSF startup register or activate failed");
+		}
+	}
+	else {
 		DEBUG_LOG(L"TSF disabled at startup: deactivate stale profile");
 		TSFRegistrationHelper::deactivateTIP();
 	}
@@ -216,6 +223,7 @@ void AppDelegate::onDefaultConfig() {
 	APP_SET_DATA(vTempOffOpenKey, 0);
 	APP_SET_DATA(vUseTSFInput, 0);
 	APP_SET_DATA(vForceUnloadTSFDLL, 0);
+	APP_SET_DATA(vTSFBackspaceCompatibility, 0);
 	APP_SET_DATA(vFixChromiumBrowser, 0);
 
 	if (mainDialog) {
@@ -407,7 +415,6 @@ void AppDelegate::shutdown() {
 
 	DEBUG_LOG(L"OpenKey exit requested: vUseTSFInput=%d registered=%d", vUseTSFInput, TSFRegistrationHelper::isTIPRegistered());
 	if (vUseTSFInput || TSFRegistrationHelper::isTIPRegistered()) {
-		APP_SET_DATA(vUseTSFInput, 0);
 		TSFRegistrationHelper::unregisterTIP(false);
 		DEBUG_LOG(L"TIP unregistered during exit");
 	}

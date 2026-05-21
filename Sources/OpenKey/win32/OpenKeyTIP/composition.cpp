@@ -334,8 +334,13 @@ HRESULT CCompositionManager::ReplaceLeftText(ITfContext *context, TfEditCookie e
         return FAILED(hr) ? hr : E_FAIL;
     }
 
-    hr = range->Collapse(ecWrite, TF_ANCHOR_END);
-    if (SUCCEEDED(hr) && cchDelete > 0)
+    BOOL selectionEmpty = TRUE;
+    hr = range->IsEmpty(ecWrite, &selectionEmpty);
+    if (SUCCEEDED(hr) && selectionEmpty)
+    {
+        hr = range->Collapse(ecWrite, TF_ANCHOR_END);
+    }
+    if (SUCCEEDED(hr) && selectionEmpty && cchDelete > 0)
     {
         LONG shifted = 0;
         hr = range->ShiftStart(ecWrite, -cchDelete, &shifted, NULL);

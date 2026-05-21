@@ -14,6 +14,27 @@
 #define TF_INVALID_GUIDATOM 0
 #endif
 
+static const wchar_t kOpenKeyRegistryRoot[] = L"SOFTWARE\\TuyenMai\\OpenKey";
+
+static FallbackBackspaceMode GetFallbackBackspaceMode()
+{
+    DWORD value = 0;
+    DWORD valueSize = sizeof(value);
+    DWORD type = 0;
+
+    LSTATUS status = RegGetValueW(HKEY_CURRENT_USER,
+        kOpenKeyRegistryRoot,
+        L"vTSFBackspaceCompatibility",
+        RRF_RT_REG_DWORD,
+        &type,
+        &value,
+        &valueSize);
+
+    return status == ERROR_SUCCESS && value == 1
+        ? FallbackBackspaceUnicode
+        : FallbackBackspaceVirtualKey;
+}
+
 static std::string GetForegroundExecutableName()
 {
     HWND hwnd = GetForegroundWindow();
@@ -68,28 +89,6 @@ static std::string GetForegroundExecutableName()
     exe.resize(required - 1);
 
     return exe;
-}
-
-static bool IsElectronOrChromiumApp(const std::string &exe)
-{
-    return lstrcmpiA(exe.c_str(), "Discord.exe") == 0 ||
-        lstrcmpiA(exe.c_str(), "DiscordPTB.exe") == 0 ||
-        lstrcmpiA(exe.c_str(), "DiscordCanary.exe") == 0 ||
-        lstrcmpiA(exe.c_str(), "Code.exe") == 0 ||
-        lstrcmpiA(exe.c_str(), "Code - Insiders.exe") == 0 ||
-        lstrcmpiA(exe.c_str(), "Cursor.exe") == 0 ||
-        lstrcmpiA(exe.c_str(), "Slack.exe") == 0 ||
-        lstrcmpiA(exe.c_str(), "Teams.exe") == 0 ||
-        lstrcmpiA(exe.c_str(), "Spotify.exe") == 0 ||
-        lstrcmpiA(exe.c_str(), "chrome.exe") == 0 ||
-        lstrcmpiA(exe.c_str(), "msedge.exe") == 0 ||
-        lstrcmpiA(exe.c_str(), "electron.exe") == 0;
-}
-
-static FallbackBackspaceMode GetFallbackBackspaceMode()
-{
-    return IsElectronOrChromiumApp(GetForegroundExecutableName()) ?
-        FallbackBackspaceVirtualKey : FallbackBackspaceUnicode;
 }
 
 static bool IsControlModified()
@@ -601,18 +600,12 @@ STDAPI COpenKeyTIP::OnTestKeyDown(ITfContext *, WPARAM wParam, LPARAM, BOOL *pfE
     if (IsControlModified())
     {
         // Don't claim control-modified keys so shortcuts reach the app.
-        // Reset engine state as a side effect so the next key starts fresh.
-        if (!IsModifierKey(wParam))
-        {
-            _engine.Reset();
-        }
         *pfEaten = FALSE;
         return S_OK;
     }
 
     if (IsPassThroughCommandKey(wParam))
     {
-        _engine.Reset();
         *pfEaten = FALSE;
         return S_OK;
     }
@@ -674,8 +667,6 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
     {
         vKeyHookState *state = _engine.ProcessKey(keyCode, GetCapsStatus(), false);
         vEngineEditOp op = vBuildEditOpFromHookState(state);
-        bool isTransitory = IsTransitoryContext(pic);
-        FallbackBackspaceMode fallbackBackspaceMode = GetFallbackBackspaceMode();
 
         switch (op.type)
         {
@@ -684,18 +675,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
             if (keyCode == KEY_DELETE)
             {
                 std::wstring text;
-                if (isTransitory)
-                {
-                    hr = FallbackSendOutput(text, 1, fallbackBackspaceMode);
-                }
-                else
-                {
-                    hr = RequestEditSession(pic, CEditSession::OperationReplaceLeftText, text, 1);
-                }
-                if (SUCCEEDED(hr))
-                {
-                    *pfEaten = TRUE;
-                }
+                hr = ReplaceLeftTextOrFallback(pic, text, 1, pfEaten);
                 break;
             }
 
@@ -704,22 +684,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
             {
                 break;
             }
-            if (isTransitory)
-            {
-                hr = FallbackSendOutput(text, 0, fallbackBackspaceMode);
-                if (SUCCEEDED(hr))
-                {
-                    *pfEaten = TRUE;
-                }
-            }
-            else
-            {
-                hr = RequestEditSession(pic, CEditSession::OperationReplaceLeftText, text, 0);
-                if (SUCCEEDED(hr))
-                {
-                    *pfEaten = TRUE;
-                }
-            }
+            hr = ReplaceLeftTextOrFallback(pic, text, 0, pfEaten);
             break;
         }
         case vEngineEditOpReplaceText:
@@ -730,27 +695,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
                 hr = E_FAIL;
                 break;
             }
-            if (isTransitory)
-            {
-                hr = FallbackSendOutput(text, op.backspaceCount, fallbackBackspaceMode);
-                *pfEaten = TRUE;
-            }
-            else
-            {
-                hr = RequestEditSession(pic, CEditSession::OperationReplaceLeftText, text, op.backspaceCount);
-                if (SUCCEEDED(hr))
-                {
-                    *pfEaten = TRUE;
-                }
-                else
-                {
-                    // TSF edit session failed (e.g. doc out-of-sync, no sync session grant).
-                    // Inject via fallback so the engine state stays consistent.
-                    hr = FallbackSendOutput(text, op.backspaceCount, fallbackBackspaceMode);
-                    if (SUCCEEDED(hr)) { *pfEaten = TRUE; }
-                    else { _engine.Reset(); }
-                }
-            }
+            hr = ReplaceLeftTextOrFallback(pic, text, op.backspaceCount, pfEaten);
             break;
         }
         case vEngineEditOpRestoreText:
@@ -762,25 +707,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
                 break;
             }
             AppendRestoreLiteral(keyCode, &text);
-            if (isTransitory)
-            {
-                hr = FallbackSendOutput(text, op.backspaceCount, fallbackBackspaceMode);
-                *pfEaten = TRUE;
-            }
-            else
-            {
-                hr = RequestEditSession(pic, CEditSession::OperationReplaceLeftText, text, op.backspaceCount);
-                if (SUCCEEDED(hr))
-                {
-                    *pfEaten = TRUE;
-                }
-                else
-                {
-                    hr = FallbackSendOutput(text, op.backspaceCount, fallbackBackspaceMode);
-                    if (SUCCEEDED(hr)) { *pfEaten = TRUE; }
-                    else { _engine.Reset(); }
-                }
-            }
+            hr = ReplaceLeftTextOrFallback(pic, text, op.backspaceCount, pfEaten);
             break;
         }
         case vEngineEditOpMacro:
@@ -791,15 +718,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
                 hr = E_FAIL;
                 break;
             }
-            if (isTransitory)
-            {
-                hr = FallbackSendOutput(text, op.backspaceCount, fallbackBackspaceMode);
-                *pfEaten = TRUE;
-            }
-            else
-            {
-                hr = RequestEditSession(pic, CEditSession::OperationReplaceLeftText, text, op.backspaceCount);
-            }
+            hr = ReplaceLeftTextOrFallback(pic, text, op.backspaceCount, pfEaten);
             break;
         }
         case vEngineEditOpRestoreAndStartNewSession:
@@ -811,25 +730,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
                 break;
             }
             AppendRestoreLiteral(keyCode, &text);
-            if (isTransitory)
-            {
-                hr = FallbackSendOutput(text, op.backspaceCount, fallbackBackspaceMode);
-                *pfEaten = TRUE;
-            }
-            else
-            {
-                hr = RequestEditSession(pic, CEditSession::OperationReplaceLeftText, text, op.backspaceCount);
-                if (SUCCEEDED(hr))
-                {
-                    *pfEaten = TRUE;
-                }
-                else
-                {
-                    hr = FallbackSendOutput(text, op.backspaceCount, fallbackBackspaceMode);
-                    if (SUCCEEDED(hr)) { *pfEaten = TRUE; }
-                    else { _engine.Reset(); }
-                }
-            }
+            hr = ReplaceLeftTextOrFallback(pic, text, op.backspaceCount, pfEaten);
             if (SUCCEEDED(hr))
             {
                 _engine.Reset();
@@ -1000,6 +901,38 @@ HRESULT COpenKeyTIP::RequestEditSession(ITfContext *context, CEditSession::Opera
     session->Release();
 
     return FAILED(hr) ? hr : hrSession;
+}
+
+HRESULT COpenKeyTIP::ReplaceLeftTextOrFallback(ITfContext *context, const std::wstring &text, LONG cchDelete, BOOL *pfEaten)
+{
+    if (pfEaten == NULL)
+    {
+        return E_INVALIDARG;
+    }
+    if (cchDelete < 0 || cchDelete > 255)
+    {
+        return E_INVALIDARG;
+    }
+
+    HRESULT hr = RequestEditSession(context, CEditSession::OperationReplaceLeftText, text, cchDelete);
+    if (SUCCEEDED(hr))
+    {
+        *pfEaten = TRUE;
+        return hr;
+    }
+
+    // Last-resort compatibility path mirrors legacy mode: delete committed
+    // text with physical Backspace events, then insert Unicode text.
+    hr = FallbackSendOutput(text, (BYTE)cchDelete, GetFallbackBackspaceMode());
+    if (SUCCEEDED(hr))
+    {
+        *pfEaten = TRUE;
+    }
+    else
+    {
+        _engine.Reset();
+    }
+    return hr;
 }
 
 bool COpenKeyTIP::IsRuntimeEnabled()

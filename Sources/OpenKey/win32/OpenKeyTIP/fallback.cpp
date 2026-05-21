@@ -90,8 +90,9 @@ HRESULT FallbackSendOutput(const std::wstring &text, BYTE backspaceCount, Fallba
             }
             else
             {
-                PushKey(&inputs, VK_BACK, 0, 0);
-                PushKey(&inputs, VK_BACK, 0, KEYEVENTF_KEYUP);
+                WORD scan = (WORD)MapVirtualKeyW(VK_BACK, MAPVK_VK_TO_VSC);
+                PushKey(&inputs, VK_BACK, scan, 0);
+                PushKey(&inputs, VK_BACK, scan, KEYEVENTF_KEYUP);
             }
             if (inputs.size() >= 64)
             {
