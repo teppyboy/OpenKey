@@ -156,6 +156,39 @@ static bool TranslateKey(WPARAM wParam, Uint16 *keyCode)
     }
 }
 
+static bool KeyCodeToLiteralText(Uint16 keyCode, std::wstring *text)
+{
+    if (text == NULL)
+    {
+        return false;
+    }
+
+    text->clear();
+
+    const bool shift = GetKeyState(VK_SHIFT) < 0;
+    const bool caps = (GetKeyState(VK_CAPITAL) & 1) != 0;
+    const bool isLetter = keyCode >= KEY_A && keyCode <= KEY_Z;
+    Uint32 literalKey = keyCode;
+
+    if ((isLetter && shift != caps) || (!isLetter && shift))
+    {
+        literalKey |= CAPS_MASK;
+    }
+
+    Uint16 ch = keyCodeToCharacter(literalKey);
+    if (ch == 0 && literalKey != keyCode)
+    {
+        ch = keyCodeToCharacter(keyCode);
+    }
+    if (ch == 0)
+    {
+        return false;
+    }
+
+    text->push_back((wchar_t)ch);
+    return true;
+}
+
 class ProcessingKeyGuard
 {
 public:
@@ -548,6 +581,31 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
 
         switch (op.type)
         {
+        case vEngineEditOpNone:
+        {
+            std::wstring text;
+            if (!KeyCodeToLiteralText(keyCode, &text))
+            {
+                break;
+            }
+            if (isTransitory)
+            {
+                hr = FallbackSendOutput(text, 0);
+                if (SUCCEEDED(hr))
+                {
+                    *pfEaten = TRUE;
+                }
+            }
+            else
+            {
+                hr = RequestEditSession(pic, CEditSession::OperationReplaceLeftText, text, 0);
+                if (SUCCEEDED(hr))
+                {
+                    *pfEaten = TRUE;
+                }
+            }
+            break;
+        }
         case vEngineEditOpReplaceText:
         case vEngineEditOpRestoreText:
         {
