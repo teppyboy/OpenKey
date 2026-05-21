@@ -742,7 +742,6 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 
 LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	mouseData = (MSLLHOOKSTRUCT *)lParam;
-	DEBUG_LOG(L"mouse hook: nCode=%d msg=0x%04X x=%ld y=%ld extra=0x%p", nCode, (unsigned int)wParam, mouseData ? mouseData->pt.x : 0, mouseData ? mouseData->pt.y : 0, mouseData ? (void*)mouseData->dwExtraInfo : 0);
 	switch (wParam) {
 	case WM_LBUTTONDOWN:
 	
@@ -757,7 +756,6 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	case WM_NCXBUTTONUP:
 		//send event signal to Engine
 		vKeyHandleEvent(vKeyEvent::Mouse, vKeyEventState::MouseDown, 0);
-		DebugLogHookState(L"mouse event hook state");
 		if (IS_DOUBLE_CODE(vCodeTable)) { //VNI
 			_syncKey.clear();
 		}

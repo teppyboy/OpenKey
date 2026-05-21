@@ -530,7 +530,7 @@ STDAPI COpenKeyTIP::OnTestKeyDown(ITfContext *, WPARAM wParam, LPARAM, BOOL *pfE
     }
 
     *pfEaten = FALSE;
-    if (_fDisabledForApp || IsFallbackInputMessage() || IsControlModified())
+    if (_fDisabledForApp || !IsRuntimeEnabled() || IsFallbackInputMessage() || IsControlModified())
     {
         return S_OK;
     }
@@ -559,7 +559,7 @@ STDAPI COpenKeyTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM, BOOL *pfEa
     }
 
     *pfEaten = FALSE;
-    if (pic == NULL || _fDisabledForApp || _fProcessingKey || IsFallbackInputMessage() || IsControlModified())
+    if (pic == NULL || _fDisabledForApp || !IsRuntimeEnabled() || _fProcessingKey || IsFallbackInputMessage() || IsControlModified())
     {
         return S_OK;
     }
@@ -840,4 +840,19 @@ HRESULT COpenKeyTIP::RequestEditSession(ITfContext *context, CEditSession::Opera
     session->Release();
 
     return FAILED(hr) ? hr : hrSession;
+}
+
+bool COpenKeyTIP::IsRuntimeEnabled()
+{
+    if (_engine.IsTsfModeActive())
+    {
+        return true;
+    }
+
+    _engine.Reset();
+    if (_composition != NULL && _composition->HasComposition())
+    {
+        _composition->ClearComposition();
+    }
+    return false;
 }

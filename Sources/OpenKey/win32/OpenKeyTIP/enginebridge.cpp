@@ -10,6 +10,7 @@
 using std::vector;
 
 static const wchar_t kOpenKeyRegistryRoot[] = L"SOFTWARE\\TuyenMai\\OpenKey";
+static const wchar_t kOpenKeyWindowClass[] = L"OpenKeyVietnameseInputMethod";
 static const DWORD kMaxMacroDataSize = 1024 * 1024;
 static const DWORD kMaxSmartSwitchKeySize = 256 * 1024;
 
@@ -210,6 +211,12 @@ vKeyHookState* COpenKeyEngineBridge::ProcessKey(Uint16 keyCode, Uint8 capsStatus
 		capsStatus,
 		otherControlKey);
 	return _hookState;
+}
+
+bool COpenKeyEngineBridge::IsTsfModeActive() const
+{
+	return ReadRegBool(L"vUseTSFInput", 0) == 1 &&
+		FindWindowW(kOpenKeyWindowClass, NULL) != NULL;
 }
 
 bool COpenKeyEngineBridge::IsInitialized() const

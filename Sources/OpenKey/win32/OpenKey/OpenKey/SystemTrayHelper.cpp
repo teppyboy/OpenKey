@@ -190,6 +190,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	case WM_CREATE:
 		taskbarCreated = RegisterWindowMessage(_T("TaskbarCreated"));
 		break;
+	case WM_QUERYENDSESSION:
+		AppDelegate::getInstance()->shutdown();
+		return TRUE;
+	case WM_ENDSESSION:
+		if (wParam) {
+			AppDelegate::getInstance()->shutdown();
+		}
+		break;
+	case WM_CLOSE:
+		AppDelegate::getInstance()->onOpenKeyExit();
+		break;
+	case WM_DESTROY:
+		AppDelegate::getInstance()->shutdown();
+		PostQuitMessage(0);
+		break;
 	case WM_USER+2019:
 		AppDelegate::getInstance()->onControlPanel();
 		break;
@@ -462,7 +477,7 @@ void SystemTrayHelper::_createSystemTrayIcon(const HINSTANCE& hIns) {
 	
 	if (hWnd == NULL) { //Use timer to create
 		if (recreateCount >= 5) {
-			PostQuitMessage(0);
+			AppDelegate::getInstance()->onOpenKeyExit();
 			return;
 		}
 		ins = hIns;

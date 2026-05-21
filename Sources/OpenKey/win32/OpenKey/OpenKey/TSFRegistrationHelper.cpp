@@ -179,9 +179,58 @@ namespace TSFRegistrationHelper {
 		return callRegistrationExport("DllRegisterServer");
 	}
 
+	bool deactivateTIP() {
+		DEBUG_LOG(L"TSF deactivateTIP begin");
+		HRESULT hrCo = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+		bool shouldUninitialize = SUCCEEDED(hrCo);
+		if (FAILED(hrCo) && hrCo != RPC_E_CHANGED_MODE) {
+			DEBUG_LOG(L"TSF deactivateTIP CoInitializeEx failed hr=0x%08X", (unsigned int)hrCo);
+			return false;
+		}
+
+		bool success = false;
+		ITfInputProcessorProfiles* profiles = NULL;
+		HRESULT hr = CoCreateInstance(CLSID_TF_InputProcessorProfiles, NULL, CLSCTX_INPROC_SERVER,
+			IID_ITfInputProcessorProfiles, (void**)&profiles);
+		if (SUCCEEDED(hr) && profiles) {
+			ITfInputProcessorProfileMgr* profileMgr = NULL;
+			HRESULT hrMgr = profiles->QueryInterface(IID_ITfInputProcessorProfileMgr, (void**)&profileMgr);
+			if (SUCCEEDED(hrMgr) && profileMgr) {
+				HRESULT hrDeactivate = profileMgr->DeactivateProfile(TF_PROFILETYPE_INPUTPROCESSOR,
+					TIP_LANGID,
+					TIP_CLSID_VALUE,
+					TIP_PROFILE_GUID,
+					NULL,
+					TF_IPPMF_FORSESSION | TF_IPPMF_DISABLEPROFILE);
+				DEBUG_LOG(L"TSF deactivateTIP DeactivateProfile hr=0x%08X", (unsigned int)hrDeactivate);
+				success = SUCCEEDED(hrDeactivate);
+				profileMgr->Release();
+			}
+			else {
+				DEBUG_LOG(L"TSF deactivateTIP QueryInterface ITfInputProcessorProfileMgr failed hr=0x%08X", (unsigned int)hrMgr);
+			}
+
+			HRESULT hrEnable = profiles->EnableLanguageProfile(TIP_CLSID_VALUE, TIP_LANGID, TIP_PROFILE_GUID, FALSE);
+			HRESULT hrDefault = profiles->EnableLanguageProfileByDefault(TIP_CLSID_VALUE, TIP_LANGID, TIP_PROFILE_GUID, FALSE);
+			DEBUG_LOG(L"TSF deactivateTIP disable hr=0x%08X default=0x%08X", (unsigned int)hrEnable, (unsigned int)hrDefault);
+			success = success || SUCCEEDED(hrEnable) || SUCCEEDED(hrDefault);
+			profiles->Release();
+		}
+		else {
+			DEBUG_LOG(L"TSF deactivateTIP CoCreateInstance failed hr=0x%08X", (unsigned int)hr);
+		}
+
+		if (shouldUninitialize)
+			CoUninitialize();
+		DEBUG_LOG(L"TSF deactivateTIP result=%d", success ? 1 : 0);
+		return success;
+	}
+
 	bool unregisterTIP(bool elevated) {
 		UNREFERENCED_PARAMETER(elevated);
 		DEBUG_LOG(L"TSF unregisterTIP elevated=%d", elevated ? 1 : 0);
+		bool deactivated = deactivateTIP();
+		DEBUG_LOG(L"TSF unregisterTIP deactivate result=%d", deactivated ? 1 : 0);
 		return callRegistrationExport("DllUnregisterServer");
 	}
 

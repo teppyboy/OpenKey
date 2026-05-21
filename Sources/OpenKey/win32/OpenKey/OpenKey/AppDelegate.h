@@ -54,5 +54,9 @@ public: //event
 
 	void onControlPanel();
 	void onOpenKeyAbout();
+	void shutdown();
 	void onOpenKeyExit();
+
+private:
+	bool isShuttingDown = false;
 };

@@ -54,6 +54,7 @@ public:
 private:
     HRESULT RequestEditSession(ITfContext *context, CEditSession::Operation operation, const std::wstring &text);
     HRESULT RequestEditSession(ITfContext *context, CEditSession::Operation operation, const std::wstring &text, LONG cchDelete);
+    bool IsRuntimeEnabled();
     void ApplySmartSwitchForForegroundApp();
 
     LONG _cRef;

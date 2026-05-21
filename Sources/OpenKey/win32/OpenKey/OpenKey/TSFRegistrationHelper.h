@@ -17,6 +17,7 @@ redistribute your new version, it MUST be open source.
 namespace TSFRegistrationHelper {
 	bool isTIPRegistered();
 	bool registerTIP(bool elevated);
+	bool deactivateTIP();
 	bool unregisterTIP(bool elevated);
 	bool activateTIP();
 	std::wstring getTIPDllPath();

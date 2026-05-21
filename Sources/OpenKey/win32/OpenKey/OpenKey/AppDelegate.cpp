@@ -114,6 +114,10 @@ int AppDelegate::run(HINSTANCE hInstance) {
 	//init OpenKey Engine
 	OpenKeyManager::initEngine();
 	DEBUG_LOG(L"OpenKey engine initialized");
+	if (!vUseTSFInput) {
+		DEBUG_LOG(L"TSF disabled at startup: deactivate stale profile");
+		TSFRegistrationHelper::deactivateTIP();
+	}
 
 	//create system tray
 	SystemTrayHelper::createSystemTrayIcon(hInstance);
@@ -141,6 +145,7 @@ int AppDelegate::run(HINSTANCE hInstance) {
 		}
 	}
 	DEBUG_LOG(L"AppDelegate::run message loop exited");
+	shutdown();
 	DebugLogShutdown();
 	return 0;
 }
@@ -387,14 +392,23 @@ void AppDelegate::onOpenKeyAbout() {
 	}
 }
 
-void AppDelegate::onOpenKeyExit() {
+void AppDelegate::shutdown() {
+	if (isShuttingDown) {
+		return;
+	}
+	isShuttingDown = true;
+
 	DEBUG_LOG(L"OpenKey exit requested: vUseTSFInput=%d registered=%d", vUseTSFInput, TSFRegistrationHelper::isTIPRegistered());
 	if (vUseTSFInput || TSFRegistrationHelper::isTIPRegistered()) {
-		TSFRegistrationHelper::unregisterTIP(false);
 		APP_SET_DATA(vUseTSFInput, 0);
+		TSFRegistrationHelper::unregisterTIP(false);
 		DEBUG_LOG(L"TIP unregistered during exit");
 	}
 	OpenKeyManager::freeEngine();
 	SystemTrayHelper::removeSystemTray();
+}
+
+void AppDelegate::onOpenKeyExit() {
+	shutdown();
 	PostQuitMessage(0);
 }

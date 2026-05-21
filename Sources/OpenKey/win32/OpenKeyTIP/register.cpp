@@ -105,6 +105,27 @@ namespace
         return IsMissingRegistrationFailure(hr) ? S_OK : hr;
     }
 
+    void DeactivateTsfProfile(ITfInputProcessorProfiles *profiles)
+    {
+        if (profiles == NULL)
+        {
+            return;
+        }
+
+        ITfInputProcessorProfileMgr *profileMgr = NULL;
+        HRESULT hr = profiles->QueryInterface(IID_ITfInputProcessorProfileMgr, (void **)&profileMgr);
+        if (SUCCEEDED(hr) && profileMgr != NULL)
+        {
+            profileMgr->DeactivateProfile(TF_PROFILETYPE_INPUTPROCESSOR,
+                LANGID_OpenKeyVietnamese,
+                CLSID_OpenKeyTIP,
+                GUID_OpenKeyProfile,
+                NULL,
+                TF_IPPMF_FORSESSION | TF_IPPMF_DISABLEPROFILE);
+            profileMgr->Release();
+        }
+    }
+
     void RemoveTsfRegistration(ITfInputProcessorProfiles *profiles, ITfCategoryMgr *categoryMgr, HRESULT *firstFailure)
     {
         if (categoryMgr != NULL)
@@ -113,8 +134,12 @@ namespace
             SaveFirstFailure(IgnoreMissingRegistration(categoryMgr->UnregisterCategory(CLSID_OpenKeyTIP, GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, CLSID_OpenKeyTIP)), firstFailure);
         }
 
+
         if (profiles != NULL)
         {
+            DeactivateTsfProfile(profiles);
+            SaveFirstFailure(IgnoreMissingRegistration(profiles->EnableLanguageProfile(CLSID_OpenKeyTIP, LANGID_OpenKeyVietnamese, GUID_OpenKeyProfile, FALSE)), firstFailure);
+            SaveFirstFailure(IgnoreMissingRegistration(profiles->EnableLanguageProfileByDefault(CLSID_OpenKeyTIP, LANGID_OpenKeyVietnamese, GUID_OpenKeyProfile, FALSE)), firstFailure);
             SaveFirstFailure(IgnoreMissingRegistration(profiles->RemoveLanguageProfile(CLSID_OpenKeyTIP, LANGID_OpenKeyVietnamese, GUID_OpenKeyProfile)), firstFailure);
             SaveFirstFailure(IgnoreMissingRegistration(profiles->Unregister(CLSID_OpenKeyTIP)), firstFailure);
         }

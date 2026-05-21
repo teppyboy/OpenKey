@@ -650,7 +650,7 @@ void MainControlDialog::requestRestartAsAdmin() {
             MB_ICONEXCLAMATION | MB_YESNO
         );
         if (msgboxID == IDYES) {
-            PostQuitMessage(0);
+            AppDelegate::getInstance()->onOpenKeyExit();
             ShellExecute(0, L"runas", OpenKeyHelper::getFullPath().c_str(), 0, 0, SW_SHOWNORMAL);
         }
     }

@@ -11,6 +11,7 @@ public:
 	void ReloadConfig();
 	void Reset();
 	vKeyHookState* ProcessKey(Uint16 keyCode, Uint8 capsStatus, bool otherControlKey);
+	bool IsTsfModeActive() const;
 	bool IsInitialized() const;
 
 private:
