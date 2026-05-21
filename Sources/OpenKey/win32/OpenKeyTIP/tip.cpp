@@ -137,10 +137,10 @@ static bool TranslateKey(WPARAM wParam, Uint16 *keyCode)
         *keyCode = KEY_SEMICOLON;
         return true;
     case VK_OEM_7:
-        *keyCode = KEY_BACK_SLASH;
+        *keyCode = KEY_QUOTE;
         return true;
     case VK_OEM_5:
-        *keyCode = KEY_BACKQUOTE;
+        *keyCode = KEY_BACK_SLASH;
         return true;
     case VK_OEM_MINUS:
         *keyCode = KEY_MINUS;
@@ -149,7 +149,7 @@ static bool TranslateKey(WPARAM wParam, Uint16 *keyCode)
         *keyCode = KEY_EQUALS;
         return true;
     case VK_OEM_3:
-        *keyCode = KEY_QUOTE;
+        *keyCode = KEY_BACKQUOTE;
         return true;
     default:
         return false;

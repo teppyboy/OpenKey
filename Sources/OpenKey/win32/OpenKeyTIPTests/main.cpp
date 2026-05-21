@@ -156,6 +156,30 @@ static bool TestTelexDdoasOrder()
     return true;
 }
 
+static bool TestWindowsOemPunctuationKeys()
+{
+    if (keyCodeToCharacter(KEY_BACKQUOTE) != L'`') {
+        return Fail("KEY_BACKQUOTE did not map to backquote");
+    }
+    if (keyCodeToCharacter(KEY_BACKQUOTE | CAPS_MASK) != L'~') {
+        return Fail("KEY_BACKQUOTE shifted did not map to tilde");
+    }
+    if (keyCodeToCharacter(KEY_BACK_SLASH) != L'\\') {
+        return Fail("KEY_BACK_SLASH did not map to backslash");
+    }
+    if (keyCodeToCharacter(KEY_BACK_SLASH | CAPS_MASK) != L'|') {
+        return Fail("KEY_BACK_SLASH shifted did not map to pipe");
+    }
+    if (keyCodeToCharacter(KEY_QUOTE) != L'\'') {
+        return Fail("KEY_QUOTE did not map to quote");
+    }
+    if (keyCodeToCharacter(KEY_QUOTE | CAPS_MASK) != L'\"') {
+        return Fail("KEY_QUOTE shifted did not map to double quote");
+    }
+
+    return true;
+}
+
 int main()
 {
     if (!TestNullHookState()) {
@@ -168,6 +192,9 @@ int main()
         return 1;
     }
     if (!TestTelexDdoasOrder()) {
+        return 1;
+    }
+    if (!TestWindowsOemPunctuationKeys()) {
         return 1;
     }
 
